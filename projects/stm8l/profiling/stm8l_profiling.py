@@ -138,16 +138,16 @@ class Main:
     def run(self):
         s_length = 0
         e_length = 200
-        length_step = 5
+        length_step = 4 
         s_delay = 0
         e_delay = 500
-        delay_step = 10
-        s_voltage = 0.00
+        delay_step = 16
+        s_voltage = 0.03
         e_voltage = 2.00
-        voltage_step = 0.05
-        n_glitches = 200
+        voltage_step = 0.01
+        n_glitches = 100
 
-        expected_glitches_per_second = 31
+        expected_glitches_per_second = 32
         total_glitches = (
             (e_voltage - s_voltage)
             / voltage_step
@@ -171,7 +171,7 @@ class Main:
         self.psu.turn_on()
         time.sleep(0.1)
 
-        for voltage in np.arange(s_voltage, e_voltage + 0.01, 0.01):
+        for voltage in np.arange(s_voltage, e_voltage + voltage_step, voltage_step):
             print(f"Setting PSU voltage to {voltage:.2f} V")
             self.psu.set_voltage(voltage)
             time.sleep(0.1)
