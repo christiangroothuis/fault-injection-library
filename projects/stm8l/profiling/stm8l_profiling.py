@@ -142,7 +142,7 @@ class Main:
         s_delay = 0
         e_delay = 500
         delay_step = 20
-        s_voltage = 0.03
+        s_voltage = 0.11
         e_voltage = 2.00
         voltage_step = 0.01
         n_glitches = 200
@@ -178,7 +178,7 @@ class Main:
 
             # for delay in np.arange(s_delay, e_delay, delay_step):
             for delay in [340, 840]:
-                for length in np.arange(s_length, e_length, length_step):
+                for length in np.arange(s_length, e_length + length_step, length_step):
                     for _ in range(n_glitches):
                         delay = int(delay)
                         length = int(length)
