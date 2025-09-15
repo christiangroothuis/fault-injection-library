@@ -141,7 +141,7 @@ class Main:
         length_step = 4 
         s_delay = 0
         e_delay = 500
-        delay_step = 16
+        delay_step = 20
         s_voltage = 0.03
         e_voltage = 2.00
         voltage_step = 0.01
