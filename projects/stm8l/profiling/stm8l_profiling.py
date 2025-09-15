@@ -136,7 +136,7 @@ class Main:
         self.psu = PS3005D(port=args.psu)
 
     def run(self):
-        s_length = 0
+        s_length = 4
         e_length = 200
         length_step = 4 
         s_delay = 0
@@ -145,7 +145,7 @@ class Main:
         s_voltage = 0.03
         e_voltage = 2.00
         voltage_step = 0.01
-        n_glitches = 100
+        n_glitches = 200
 
         expected_glitches_per_second = 32
         total_glitches = (
@@ -176,7 +176,8 @@ class Main:
             self.psu.set_voltage(voltage)
             time.sleep(0.1)
 
-            for delay in np.arange(s_delay, e_delay, delay_step):
+            # for delay in np.arange(s_delay, e_delay, delay_step):
+            for delay in [340, 840]:
                 for length in np.arange(s_length, e_length, length_step):
                     for _ in range(n_glitches):
                         delay = int(delay)
