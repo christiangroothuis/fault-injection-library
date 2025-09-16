@@ -3,7 +3,7 @@
 import argparse
 import logging
 import os
-from random import random
+import random 
 import sys
 import time
 import numpy as np
