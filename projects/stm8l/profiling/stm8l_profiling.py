@@ -3,6 +3,7 @@
 import argparse
 import logging
 import os
+from random import random
 import sys
 import time
 import numpy as np
@@ -130,7 +131,12 @@ class Main:
 
         self.glitcher.power_cycle_reset(0.01)
 
-        self.db = Database(sys.argv, resume=args.resume, nostore=args.no_store, column_names=["voltage", "delay", "length"])
+        self.db = Database(
+            sys.argv,
+            resume=args.resume,
+            nostore=args.no_store,
+            column_names=["voltage", "delay", "length"],
+        )
         self.start_time = int(time.time())
 
         self.psu = PS3005D(port=args.psu)
@@ -138,29 +144,14 @@ class Main:
     def run(self):
         s_length = 4
         e_length = 200
-        length_step = 4 
-        s_delay = 0
-        e_delay = 500
+        length_step = 4
+        s_delay = 200
+        e_delay = 3000
         delay_step = 20
-        s_voltage = 0.11
-        e_voltage = 2.00
+        s_voltage = 0.40
+        e_voltage = 2.20
         voltage_step = 0.01
-        n_glitches = 200
-
-        expected_glitches_per_second = 32
-        total_glitches = (
-            (e_voltage - s_voltage)
-            / voltage_step
-            * (e_delay - s_delay)
-            / delay_step
-            * (e_length - s_length)
-            / length_step
-            * n_glitches
-        )
-        total_experiment_length = total_glitches / expected_glitches_per_second
-        print(
-            f"Total glitches: {total_glitches}, expected experiment length: {total_experiment_length:.2f} seconds"
-        )
+        n_glitches = 2000
 
         exp_id = 0
 
@@ -176,55 +167,57 @@ class Main:
             self.psu.set_voltage(voltage)
             time.sleep(0.1)
 
-            # for delay in np.arange(s_delay, e_delay, delay_step):
-            for delay in [340, 840]:
-                for length in np.arange(s_length, e_length + length_step, length_step):
-                    for _ in range(n_glitches):
-                        delay = int(delay)
-                        length = int(length)
+            length_band = length_step * 4
+            estimated_optimal_length = round(32 * voltage / 4) * 4
 
-                        mul_config = {"t1": length, "v1": "VI1"}
-                        self.glitcher.arm_multiplexing(delay, mul_config)
+            for length in np.arange(
+                max(estimated_optimal_length - length_band, s_length),
+                estimated_optimal_length + length_band + length_step,
+                length_step,
+            ):
+                for _ in range(n_glitches):
+                    delay = random.randint(s_delay, e_delay)
+                    mul_config = {"t1": length, "v1": "VI1"}
+                    self.glitcher.arm_multiplexing(delay, mul_config)
+                    self.glitcher.reset(0.001)
 
-                        self.glitcher.reset(0.001)
+                    try:
+                        self.glitcher.block(timeout=1)
+                        time.sleep(0.001)
 
-                        try:
-                            self.glitcher.block(timeout=1)
-                            time.sleep(0.001)
+                        success = self.glitcher.read_success_flag()
+                        reset = self.glitcher.read_reset_flag()
+                        print(f"success={success}, reset={reset}")
 
-                            success = self.glitcher.read_success_flag()
-                            reset = self.glitcher.read_reset_flag()
-                            print(f"success={success}, reset={reset}")
-
-                            if success:
-                                state = b"success"
-                                send_pushover_notification(
-                                    user_key=os.getenv("PUSHOVER_USER_KEY"),
-                                    app_token=os.getenv("PUSHOVER_APP_TOKEN"),
-                                    message=f"Successful glitch! with delay={delay} ns, length={length} ns, voltage={voltage:.2f} V",
-                                    title="Successful glitch",
-                                )
-                            elif reset:
-                                state = b"reset"
-                            else:
-                                state = b"expected"
-                        except:
-                            print("[-] Timeout received in block(). Continuing.")
-                            self.glitcher.power_cycle_reset(0.2)
-                            time.sleep(0.2)
-                            state = b"timeout"
-
-                        color = self.glitcher.classify(state)
-                        self.db.insert(exp_id, voltage * 100, delay, length, color, state)
-                        speed = self.glitcher.get_speed(self.start_time, exp_id)
-                        experiment_base_id = self.db.get_base_experiments_count()
-                        print(
-                            self.glitcher.colorize(
-                                f"[+] Experiment {exp_id}\t{experiment_base_id}\t({speed})\t{voltage:.2f}\t{delay:>{len(str(e_delay))}}\t{length}\t{color}\t{state}",
-                                color,
+                        if success:
+                            state = b"success"
+                            send_pushover_notification(
+                                user_key=os.getenv("PUSHOVER_USER_KEY"),
+                                app_token=os.getenv("PUSHOVER_APP_TOKEN"),
+                                message=f"Successful glitch! with delay={delay} ns, length={length} ns, voltage={voltage:.2f} V",
+                                title="Successful glitch",
                             )
+                        elif reset:
+                            state = b"reset"
+                        else:
+                            state = b"expected"
+                    except:
+                        print("[-] Timeout received in block(). Continuing.")
+                        self.glitcher.power_cycle_reset(0.2)
+                        time.sleep(0.2)
+                        state = b"timeout"
+
+                    color = self.glitcher.classify(state)
+                    self.db.insert(exp_id, voltage * 100, delay, length, color, state)
+                    speed = self.glitcher.get_speed(self.start_time, exp_id)
+                    experiment_base_id = self.db.get_base_experiments_count()
+                    print(
+                        self.glitcher.colorize(
+                            f"[+] Experiment {exp_id}\t{experiment_base_id}\t({speed})\t{voltage:.2f}\t{delay:>{len(str(e_delay))}}\t{length}\t{color}\t{state}",
+                            color,
                         )
-                        exp_id += 1
+                    )
+                    exp_id += 1
 
         self.psu.turn_off()
 
