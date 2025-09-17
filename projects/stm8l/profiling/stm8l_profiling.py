@@ -167,7 +167,7 @@ class Main:
             self.psu.set_voltage(voltage)
             time.sleep(0.1)
 
-            length_band = length_step * 4
+            length_band = length_step * 5
             estimated_optimal_length = round(32 * voltage / 4) * 4
 
             for length in np.arange(
