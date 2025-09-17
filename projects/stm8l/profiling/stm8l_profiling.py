@@ -151,7 +151,7 @@ class Main:
         s_voltage = 0.40
         e_voltage = 2.20
         voltage_step = 0.01
-        n_glitches = 2000
+        n_glitches = 500
 
         exp_id = 0
 
