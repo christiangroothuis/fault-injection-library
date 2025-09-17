@@ -145,10 +145,10 @@ class Main:
         s_length = 4
         e_length = 200
         length_step = 4
-        s_delay = 1850
+        s_delay = 1870
         e_delay = 1900
         delay_step = 20
-        s_voltage = 0.40
+        s_voltage = 1.60
         e_voltage = 2.20
         voltage_step = 0.01
         n_glitches = 500
@@ -171,7 +171,7 @@ class Main:
             estimated_optimal_length = round(32 * voltage / 4) * 4
 
             for length in np.arange(
-                max(estimated_optimal_length - length_band, s_length),
+                min(max(estimated_optimal_length - length_band, s_length), 28),
                 estimated_optimal_length + length_band + length_step,
                 length_step,
             ):
