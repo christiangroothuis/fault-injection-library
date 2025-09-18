@@ -145,8 +145,8 @@ class Main:
         s_length = 4
         e_length = 200
         length_step = 4
-        s_delay = 0
-        e_delay = 6000
+        s_delay = 4000
+        e_delay = 10000
         delay_step = 20
         s_voltage = 1.60
         e_voltage = 2.20
