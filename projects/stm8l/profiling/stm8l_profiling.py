@@ -164,7 +164,7 @@ class Main:
 
         for voltage in np.arange(s_voltage, e_voltage + voltage_step, voltage_step):
             print(f"Setting PSU voltage to {voltage:.2f} V")
-            self.psu.set_voltage(voltage)
+            self.psu.set_voltage(1.39)
             time.sleep(0.1)
 
             length_band = length_step * 5
@@ -175,10 +175,10 @@ class Main:
                 estimated_optimal_length + length_band + length_step,
                 length_step,
             ):
-                length = int(length)
+                length = 32
                 
                 for _ in range(n_glitches):
-                    delay = random.randint(s_delay, e_delay)
+                    delay = 1888
                     mul_config = {"t1": length, "v1": "VI1"}
                     self.glitcher.arm_multiplexing(delay, mul_config)
                     self.glitcher.reset(0.001)
