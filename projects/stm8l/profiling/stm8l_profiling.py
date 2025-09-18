@@ -189,7 +189,6 @@ class Main:
 
                         success = self.glitcher.read_success_flag()
                         reset = self.glitcher.read_reset_flag()
-                        print(f"success={success}, reset={reset}")
 
                         if success:
                             state = b"success"
