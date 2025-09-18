@@ -163,8 +163,9 @@ class Main:
         time.sleep(0.1)
 
         for voltage in np.arange(s_voltage, e_voltage + voltage_step, voltage_step):
+            voltage = 1.39
             print(f"Setting PSU voltage to {voltage:.2f} V")
-            self.psu.set_voltage(1.39)
+            self.psu.set_voltage(voltage)
             time.sleep(0.1)
 
             length_band = length_step * 5
