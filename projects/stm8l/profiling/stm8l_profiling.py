@@ -193,12 +193,12 @@ class Main:
 
                         if success:
                             state = b"success"
-                            send_pushover_notification(
-                                user_key=os.getenv("PUSHOVER_USER_KEY"),
-                                app_token=os.getenv("PUSHOVER_APP_TOKEN"),
-                                message=f"Successful glitch! with delay={delay} ns, length={length} ns, voltage={voltage:.2f} V",
-                                title="Successful glitch",
-                            )
+                            # send_pushover_notification(
+                            #     user_key=os.getenv("PUSHOVER_USER_KEY"),
+                            #     app_token=os.getenv("PUSHOVER_APP_TOKEN"),
+                            #     message=f"Successful glitch! with delay={delay} ns, length={length} ns, voltage={voltage:.2f} V",
+                            #     title="Successful glitch",
+                            # )
                         elif reset:
                             state = b"reset"
                         else:
