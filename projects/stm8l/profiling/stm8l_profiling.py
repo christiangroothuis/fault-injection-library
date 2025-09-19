@@ -175,6 +175,7 @@ class Main:
                 estimated_optimal_length + length_band + length_step,
                 length_step,
             ):
+                length = int(length)
                 for _ in range(n_glitches):
                     delay = random.randint(s_delay, e_delay)
                     mul_config = {"t1": length, "v1": "VI1"}
