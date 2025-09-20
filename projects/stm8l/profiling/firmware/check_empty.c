@@ -10,10 +10,8 @@
 
 void main(void)
 {
-    CLK_PCKENR1 = 0xff;
-
     // set output
-	PB_DDR |= TRIG_PIN | SUCCESS_PIN | RESET_PIN; // PB1, PB4, PB5 as outputs
+	PB_DDR |= TRIG_PIN | SUCCESS_PIN | RESET_PIN; // set as output
 	PB_CR1 |= TRIG_PIN | SUCCESS_PIN | RESET_PIN; // push-pull
 	PB_CR2 |= TRIG_PIN | SUCCESS_PIN | RESET_PIN; // fast
 
