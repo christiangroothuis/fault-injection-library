@@ -40,3 +40,7 @@ class PS3005D:
 
     def turn_off(self):
         self.device.write("OUT0".encode())
+
+    def __del__(self):
+        self.turn_off()
+        self.device.close()
