@@ -52,7 +52,7 @@ class Main:
             "length_step": 4,
             "s_delay": 1875,
             "e_delay": 1900,
-            "s_voltage": 0.98,
+            "s_voltage": 0.90,
             "e_voltage": 1.60,
             "voltage_step": 0.01,
             "n_glitches": 500,
@@ -92,7 +92,6 @@ class Main:
             self.parameters["e_voltage"],
             self.parameters["voltage_step"],
         ):
-            voltage = 1.19
             print(f"Setting PSU voltage to {voltage:.2f} V")
             self.psu.set_voltage(voltage)
             time.sleep(0.1)
@@ -108,11 +107,10 @@ class Main:
                     ),
                     12,
                 ),
-                min(estimated_optimal_length + length_band + self.parameters["length_step"], 32),
+                min(estimated_optimal_length + length_band + self.parameters["length_step"], 46),
                 self.parameters["length_step"],
             ):
-                # length = int(length)
-                length = 24
+                length = int(length)
                 for _ in range(self.parameters["n_glitches"]):
                     delay = random.randint(
                         self.parameters["s_delay"], self.parameters["e_delay"]
