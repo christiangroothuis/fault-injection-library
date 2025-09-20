@@ -1,37 +1,16 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: GPL-3.0-only
-# Adapted for STM8L single-glitch with external trigger + success-pin
 
 import argparse
 import logging
 import random
 import sys
 import time
-import os
-import requests
 from dotenv import load_dotenv
 
 from findus import Database, PicoGlitcher
 
-# Pico GPIO that your bootloader sets HIGH when the “impossible”
-# section has been reached
 SUCCESS_PIN = 20
 EXPECTED_PIN = 21
-
-
-def send_pushover_notification(user_key, app_token, message, title=None):
-    url = "https://api.pushover.net/1/messages.json"
-    payload = {
-        "token": app_token,
-        "user": user_key,
-        "message": message,
-    }
-    if title:
-        payload["title"] = title
-
-    response = requests.post(url, data=payload)
-    if response.status_code != 200:
-        print(f"Failed to send notification: {response.text}")
 
 
 class DerivedPicoGlitcher(PicoGlitcher):
@@ -56,14 +35,8 @@ class DerivedPicoGlitcher(PicoGlitcher):
         color = "C"
         if b"expected" in state:
             color = "G"
-        elif b"ok" in state:
-            color = "C"
-        elif b"error" in state:
-            color = "M"
         elif b"timeout" in state:
             color = "Y"
-        elif b"warning" in state:
-            color = "O"
         elif b"success" in state:
             color = "R"
         return color
@@ -73,21 +46,11 @@ class Main:
     def __init__(self, args):
         self.args = args
 
-        logging.basicConfig(
-            filename="stm8l_ext_trigger.log",
-            filemode="a",
-            format="%(asctime)s %(message)s",
-            level=logging.INFO,
-            force=True,
-        )
-
-        # -- initialize glitcher --
         self.glitcher = DerivedPicoGlitcher()
         self.glitcher.init(port=args.rpico, enable_vtarget=False)
         self.glitcher.change_config_and_reset("mux_vinit", "3.3")
         self.glitcher.init(port=args.rpico, enable_vtarget=False)
 
-        # Use external trigger pin (wired from your instrumented bootloader)
         self.glitcher.rising_edge_trigger()
 
         self.glitcher.set_multiplexing()
@@ -107,15 +70,9 @@ class Main:
         while True:
             if exp_id % 1000 == 0:
                 self.glitcher.power_cycle_reset(1)
-                
-            # for delay in np.arange(s_delay, e_delay + 1, 1):
-            # for length in np.arange(s_length, e_length + 1, 1):
-            # for _ in range(2000):
-            # pick random glitch parameters (ns)
+
             delay = random.randint(s_delay, e_delay)
             length = random.randint(s_length, e_length)
-            # delay = int(delay)
-            # length = int(length)
 
             mul_config = {"t1": length, "v1": "1.8"}
             self.glitcher.arm_multiplexing(delay, mul_config)
@@ -133,13 +90,6 @@ class Main:
 
                 if success:
                     state = b"success"
-                    os.system("afplay /System/Library/Sounds/Glass.aiff")
-                    send_pushover_notification(
-                        user_key=os.getenv("PUSHOVER_USER_KEY"),
-                        app_token=os.getenv("PUSHOVER_APP_TOKEN"),
-                        message=f"Successful glitch! with delay={delay} ns, length={length} ns",
-                        title="Successful glitch",
-                    )
                 elif reset:
                     state = b"reset"
                 else:

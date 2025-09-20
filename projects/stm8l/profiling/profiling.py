@@ -1,38 +1,21 @@
 #!/usr/bin/env python3
 
 import argparse
-import logging
-import os
-import random 
+import random
 import sys
 import time
 import numpy as np
-from serial import Serial
-import requests
+
 from dotenv import load_dotenv
 
 from findus import Database, PicoGlitcher
+from ..utils.psu import PS3005D
 
 SUCCESS_PIN = 20
 RESET_PIN = 21
 
 
-def send_pushover_notification(user_key, app_token, message, title=None):
-    url = "https://api.pushover.net/1/messages.json"
-    payload = {
-        "token": app_token,
-        "user": user_key,
-        "message": message,
-    }
-    if title:
-        payload["title"] = title
-
-    response = requests.post(url, data=payload)
-    if response.status_code != 200:
-        print(f"Failed to send notification: {response.text}")
-
-
-class DerivedPicoGlitcher(PicoGlitcher):
+class ProfilingGlitcher(PicoGlitcher):
     def init(self, *args, **kwargs):
         super().init(*args, **kwargs)
 
@@ -54,83 +37,23 @@ class DerivedPicoGlitcher(PicoGlitcher):
         color = "C"
         if b"expected" in state:
             color = "G"
-        elif b"ok" in state:
-            color = "C"
-        elif b"error" in state:
-            color = "M"
         elif b"timeout" in state:
             color = "Y"
-        elif b"warning" in state:
-            color = "O"
         elif b"success" in state:
             color = "R"
         return color
 
 
-class PS3005D:
-    def __init__(self, port):
-        self.device = Serial(port=port, baudrate=9600)
-
-    def get_voltage(self) -> float:
-        """
-        Gets the current output voltage of the psu
-
-        Returns:
-            float: The current output voltage, in volts (V).
-        """
-        self.device.write("VSET1?".encode())
-        response = self.device.read(5).decode().strip()
-
-        return float(response)
-
-    def set_voltage(self, voltage: float, attempts: int = 10):
-        """
-        Sets the output voltage of the psu
-
-        Args:
-            voltage (float): The voltage to set, in volts (V).
-        """
-        self.device.write(f"VSET1:{voltage:05.2f}".encode())
-
-    def set_current_limit(self, current: float):
-        """
-        Sets the current limit of the psu
-
-        Args:
-            current (float): The current limit to set, in amperes (A).
-        """
-        self.device.write(f"ISET1:{current:.3f}".encode())
-
-    def turn_on(self):
-        self.device.write("OUT1".encode())
-
-    def turn_off(self):
-        self.device.write("OUT0".encode())
-
-
 class Main:
     def __init__(self, args):
         self.args = args
-
-        logging.basicConfig(
-            filename="stm8l_ext_trigger.log",
-            filemode="a",
-            format="%(asctime)s %(message)s",
-            level=logging.INFO,
-            force=True,
-        )
-
-        # -- initialize glitcher --
-        self.glitcher = DerivedPicoGlitcher()
+        self.glitcher = ProfilingGlitcher()
         self.glitcher.init(port=args.rpico, enable_vtarget=False)
         self.glitcher.change_config_and_reset("mux_vinit", "3.3")
         self.glitcher.init(port=args.rpico, enable_vtarget=False)
-
         self.glitcher.rising_edge_trigger()
         self.glitcher.set_multiplexing()
-
         self.glitcher.power_cycle_reset(0.01)
-
         self.db = Database(
             sys.argv,
             resume=args.resume,
@@ -138,21 +61,17 @@ class Main:
             column_names=["voltage", "delay", "length"],
         )
         self.start_time = int(time.time())
-
         self.psu = PS3005D(port=args.psu)
 
     def run(self):
         s_length = 4
-        e_length = 200
         length_step = 4
-        s_delay = 1850
+        s_delay = 1875
         e_delay = 1900
-        delay_step = 20
-        s_voltage = 1.35
-        e_voltage = 1.40
+        s_voltage = 0.93
+        e_voltage = 1.70
         voltage_step = 0.01
         n_glitches = 500
-
         exp_id = 0
 
         self.psu.set_voltage(s_voltage)
@@ -171,7 +90,7 @@ class Main:
             estimated_optimal_length = round(32 * voltage / 4) * 4
 
             for length in np.arange(
-                min(max(estimated_optimal_length - length_band, s_length), 28),
+                min(max(estimated_optimal_length - length_band, s_length), 12),
                 estimated_optimal_length + length_band + length_step,
                 length_step,
             ):
@@ -180,23 +99,17 @@ class Main:
                     delay = random.randint(s_delay, e_delay)
                     mul_config = {"t1": length, "v1": "VI1"}
                     self.glitcher.arm_multiplexing(delay, mul_config)
-                    self.glitcher.reset(0.001)
+                    self.glitcher.reset(100e-6)  # reset for 100us
+                    success = False
 
                     try:
                         self.glitcher.block(timeout=1)
-                        time.sleep(0.001)
-
+                        time.sleep(60e-6)
                         success = self.glitcher.read_success_flag()
                         reset = self.glitcher.read_reset_flag()
 
                         if success:
                             state = b"success"
-                            send_pushover_notification(
-                                user_key=os.getenv("PUSHOVER_USER_KEY"),
-                                app_token=os.getenv("PUSHOVER_APP_TOKEN"),
-                                message=f"Successful glitch! with delay={delay} ns, length={length} ns, voltage={voltage:.2f} V",
-                                title="Successful glitch",
-                            )
                         elif reset:
                             state = b"reset"
                         else:
@@ -208,7 +121,10 @@ class Main:
                         state = b"timeout"
 
                     color = self.glitcher.classify(state)
-                    self.db.insert(exp_id, voltage * 100, delay, length, color, state)
+                    if success:
+                        self.db.insert(
+                            exp_id, voltage * 100, delay, length, color, state
+                        )
                     speed = self.glitcher.get_speed(self.start_time, exp_id)
                     experiment_base_id = self.db.get_base_experiments_count()
                     print(
