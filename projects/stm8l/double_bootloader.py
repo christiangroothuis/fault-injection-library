@@ -59,6 +59,7 @@ class Main:
                 range(35150, 35250), # made it a bit wider, but was range(35190, 35240),
                 range(35680, 35730),
                 range(36233, 36234),
+                range(37200, 37250),
             ],
         }
 
