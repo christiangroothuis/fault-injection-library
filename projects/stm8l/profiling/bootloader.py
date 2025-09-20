@@ -45,8 +45,8 @@ class Main:
             "s_length": 24,
             "e_length": 24,
             "s_delay": 25000,
-            "e_delay": 35000,
-            "voltage": 1.23,
+            "e_delay": 40000,
+            "voltage": 1.10,
         }
 
         self.glitcher = BootloaderProfilingGlitcher()
@@ -88,7 +88,7 @@ class Main:
 
             try:
                 self.glitcher.block(timeout=1)
-                time.sleep(100e-6)
+                time.sleep(100e-6) # wait for rx to go high if success
                 success = self.glitcher.read_success_flag()
 
                 if success:
