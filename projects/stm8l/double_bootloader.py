@@ -48,15 +48,15 @@ class Main:
             "delay1": [
                 range(28450, 28550),
                 range(28950, 29000),
-                range(29400, 29500),
-                range(29240, 29260),
-                range(29450, 29500),
+                # range(29240, 29260),
+                # range(29400, 29500),
+                range(29450, 29500), # very good
                 range(30200, 30270),
-                range(31950, 32000),
+                range(31960, 32000),
             ],
             "delay2": [
                 range(34690, 34750), # seems most promising
-                range(35150, 35250), # made it a bit wider, but was range(35190, 35240),
+                range(35150, 35250), # made it a bit wider, but was range(35190, 35240), also very promising
                 range(35680, 35730),
                 range(36233, 36234),
                 range(37200, 37250),
