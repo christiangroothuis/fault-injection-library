@@ -44,7 +44,7 @@ class Main:
         self.parameters = {
             "s_length": 24,
             "e_length": 24,
-            "s_delay": 25000,
+            "s_delay": 35000,
             "e_delay": 40000,
             "voltage": 1.10,
         }
