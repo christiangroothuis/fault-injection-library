@@ -143,7 +143,7 @@ class Main:
             experiment_base_id = self.db.get_base_experiments_count()
             print(
                 self.glitcher.colorize(
-                    f"[+] Experiment {exp_id}\t{experiment_base_id}\t({speed})\t{self.parameters['voltage']:.2f}\t{delay1:>{len(str(self.parameters['e_delay1']))}}\t{delay2:>{len(str(self.parameters['e_delay2']))}}\t{length}\t{color}\t{state}",
+                    f"[+] Experiment {exp_id}\t{experiment_base_id}\t({speed})\t{self.parameters['voltage']:.2f}\t{delay1}\t{delay2}\t{length}\t{color}\t{state}",
                     color,
                 )
             )
