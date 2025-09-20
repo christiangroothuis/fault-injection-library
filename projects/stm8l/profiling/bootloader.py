@@ -41,6 +41,13 @@ class BootloaderProfilingGlitcher(PicoGlitcher):
 class Main:
     def __init__(self, args):
         self.args = args
+        self.parameters = {
+            "s_length": 24,
+            "e_length": 24,
+            "s_delay": 25000,
+            "e_delay": 35000,
+            "voltage": 1.23,
+        }
 
         self.glitcher = BootloaderProfilingGlitcher()
         self.glitcher.init(port=args.rpico, enable_vtarget=False)
@@ -53,7 +60,7 @@ class Main:
         self.glitcher.power_cycle_reset(0.01)
 
         self.db = Database(
-            sys.argv,
+            sys.argv + [f"{k}={v}" for k, v in self.parameters.items()],
             resume=args.resume,
             nostore=args.no_store,
             column_names=["voltage", "delay", "length"],
@@ -62,14 +69,9 @@ class Main:
         self.psu = PS3005D(port=args.psu)
 
     def run(self):
-        s_length = 28
-        e_length = 28
-        s_delay = 25000
-        e_delay = 35000
-        voltage = 1.22
         exp_id = 0
 
-        self.psu.set_voltage(voltage)
+        self.psu.set_voltage(self.parameters["voltage"])
         time.sleep(0.1)
         self.psu.set_current_limit(0.2)
         time.sleep(0.1)
@@ -77,8 +79,8 @@ class Main:
         time.sleep(0.1)
 
         while True:
-            delay = int(random.randint(s_delay, e_delay))
-            length = int(random.randint(s_length, e_length))
+            delay = int(random.randint(self.parameters["s_delay"], self.parameters["e_delay"]))
+            length = int(random.randint(self.parameters["s_length"], self.parameters["e_length"]))
             mul_config = {"t1": length, "v1": "VI1"}
             self.glitcher.arm_multiplexing(delay, mul_config)
             self.glitcher.reset(100e-6)  # reset for 100us
@@ -93,7 +95,7 @@ class Main:
                     send_pushover_notification(
                         user_key=os.getenv("PUSHOVER_USER_KEY"),
                         app_token=os.getenv("PUSHOVER_APP_TOKEN"),
-                        message=f"Successful glitch! with delay={delay} ns, length={length} ns, voltage={voltage:.2f} V",
+                        message=f"Successful glitch! with delay={delay} ns, length={length} ns, voltage={self.parameters['voltage']:.2f} V",
                         title="Successful glitch",
                     )
                     state = b"success"
@@ -107,12 +109,12 @@ class Main:
 
             color = self.glitcher.classify(state)
             if success:
-                self.db.insert(exp_id, voltage * 100, delay, length, color, state)
+                self.db.insert(exp_id, self.parameters["voltage"] * 100, delay, length, color, state)
             speed = self.glitcher.get_speed(self.start_time, exp_id)
             experiment_base_id = self.db.get_base_experiments_count()
             print(
                 self.glitcher.colorize(
-                    f"[+] Experiment {exp_id}\t{experiment_base_id}\t({speed})\t{voltage:.2f}\t{delay:>{len(str(e_delay))}}\t{length}\t{color}\t{state}",
+                    f"[+] Experiment {exp_id}\t{experiment_base_id}\t({speed})\t{self.parameters['voltage']:.2f}\t{delay:>{len(str(self.parameters['e_delay']))}}\t{length}\t{color}\t{state}",
                     color,
                 )
             )
@@ -138,6 +140,7 @@ if __name__ == "__main__":
     p.add_argument(
         "--no-store", action="store_true", help="Do not write results to the database"
     )
+    p.add_argument("--ic", required=True, help="IC number")
     args = p.parse_args()
 
     try:

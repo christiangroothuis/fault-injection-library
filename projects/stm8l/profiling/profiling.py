@@ -47,6 +47,16 @@ class ProfilingGlitcher(PicoGlitcher):
 class Main:
     def __init__(self, args):
         self.args = args
+        self.parameters = {
+            "s_length": 4,
+            "length_step": 4,
+            "s_delay": 1875,
+            "e_delay": 1900,
+            "s_voltage": 0.98,
+            "e_voltage": 1.60,
+            "voltage_step": 0.01,
+            "n_glitches": 500,
+        }
 
         self.glitcher = ProfilingGlitcher()
         self.glitcher.init(port=args.rpico, enable_vtarget=False)
@@ -59,7 +69,7 @@ class Main:
         self.glitcher.power_cycle_reset(0.01)
 
         self.db = Database(
-            sys.argv,
+            sys.argv + [f"{k}={v}" for k, v in self.parameters.items()],
             resume=args.resume,
             nostore=args.no_store,
             column_names=["voltage", "delay", "length"],
@@ -68,46 +78,52 @@ class Main:
         self.psu = PS3005D(port=args.psu)
 
     def run(self):
-        s_length = 4
-        length_step = 4
-        s_delay = 1875
-        e_delay = 1900
-        s_voltage = 0.50
-        e_voltage = 1.70
-        voltage_step = 0.01
-        n_glitches = 500
         exp_id = 0
 
-        self.psu.set_voltage(s_voltage)
+        self.psu.set_voltage(self.parameters["s_voltage"])
         time.sleep(0.1)
         self.psu.set_current_limit(0.2)
         time.sleep(0.1)
         self.psu.turn_on()
         time.sleep(0.1)
 
-        for voltage in np.arange(s_voltage, e_voltage, voltage_step):
+        for voltage in np.arange(
+            self.parameters["s_voltage"],
+            self.parameters["e_voltage"],
+            self.parameters["voltage_step"],
+        ):
+            voltage = 1.19
             print(f"Setting PSU voltage to {voltage:.2f} V")
             self.psu.set_voltage(voltage)
             time.sleep(0.1)
 
-            length_band = length_step * 4
+            length_band = self.parameters["length_step"] * 4
             estimated_optimal_length = round(32 * voltage / 4) * 4
 
             for length in np.arange(
-                min(max(estimated_optimal_length - length_band, s_length), 12),
-                estimated_optimal_length + length_band + length_step,
-                length_step,
+                min(
+                    max(
+                        estimated_optimal_length - length_band,
+                        self.parameters["s_length"],
+                    ),
+                    12,
+                ),
+                min(estimated_optimal_length + length_band + self.parameters["length_step"], 32),
+                self.parameters["length_step"],
             ):
-                length = int(length)
-                for _ in range(n_glitches):
-                    delay = random.randint(s_delay, e_delay)
+                # length = int(length)
+                length = 24
+                for _ in range(self.parameters["n_glitches"]):
+                    delay = random.randint(
+                        self.parameters["s_delay"], self.parameters["e_delay"]
+                    )
                     mul_config = {"t1": length, "v1": "VI1"}
                     self.glitcher.arm_multiplexing(delay, mul_config)
-                    self.glitcher.reset(50e-6)  # reset for 50us
+                    self.glitcher.reset(200e-6)  # reset for 50us
                     success = False
 
                     try:
-                        self.glitcher.block(timeout=1)
+                        self.glitcher.block(timeout=0.1)
                         time.sleep(60e-6)
                         success = self.glitcher.read_success_flag()
                         reset = self.glitcher.read_reset_flag()
@@ -133,7 +149,7 @@ class Main:
                     experiment_base_id = self.db.get_base_experiments_count()
                     print(
                         self.glitcher.colorize(
-                            f"[+] Experiment {exp_id}\t{experiment_base_id}\t({speed})\t{voltage:.2f}\t{delay:>{len(str(e_delay))}}\t{length}\t{color}\t{state}",
+                            f"[+] Experiment {exp_id}\t{experiment_base_id}\t({speed})\t{voltage:.2f}\t{delay:>{len(str(self.parameters['e_delay']))}}\t{length}\t{color}\t{state}",
                             color,
                         )
                     )
@@ -159,6 +175,8 @@ if __name__ == "__main__":
     p.add_argument(
         "--no-store", action="store_true", help="Do not write results to the database"
     )
+    p.add_argument("--ic", required=True, help="IC number")
+    p.add_argument("--bor", help="Brownout reset voltage enabled")
     args = p.parse_args()
 
     try:
