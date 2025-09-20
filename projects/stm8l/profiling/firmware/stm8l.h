@@ -174,3 +174,6 @@
 #define TIM_SR1_CC2IF (1 << 2)
 #define TIM_SR1_CC1IF (1 << 1)
 #define TIM_SR1_UIF (1 << 0)
+
+#define RST_CR *(unsigned char*)0x50B0
+#define RST_SR *(unsigned char*)0x50B1
