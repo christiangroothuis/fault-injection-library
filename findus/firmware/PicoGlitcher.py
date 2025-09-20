@@ -1158,6 +1158,8 @@ class PicoGlitcher():
         
         if delay2 <= delay1 + length1:
             raise Exception(f"Second glitch collides with first one; delay2 too short.")
+        
+        delay2 = delay2 - (delay1 + length1)
 
         # state machine for double multiplex glitch
         self.sm0.active(0)
@@ -1170,21 +1172,27 @@ class PicoGlitcher():
         # )
 
         # convert nanoseconds to PIO clock cycles
-        cycle = 1_000_000_000 // self.frequency
-        d1 = int(delay1) // cycle
-        l1 = int(length1) // cycle
-        d2 = int(delay2) // cycle
-        l2 = int(length2) // cycle
+        cycles_per_ns = 1_000_000_000 // self.frequency
 
+        pulse1_length = int(length1) // cycles_per_ns
+        pulse1_delay = int(delay1) // cycles_per_ns
+        pulse2_delay = int(delay2) // cycles_per_ns
+        pulse2_length = int(length2) // cycles_per_ns
+
+        if pulse1_length > 2**14 or pulse2_length > 2**14:
+            raise Exception(f"Pulse length exceeds maximum value.")
+        if pulse1_delay > 2**32 or pulse2_delay > 2**32:
+            raise Exception(f"Pulse delay exceeds maximum value.")
+        
         # pack each config: bits [0..13]=length, bits [14..15]=voltage index
-        c1 = (self.voltage_map[v1] << 14) | (l1 & 0x3FFF)
-        c2 = (self.voltage_map[v2] << 14) | (l2 & 0x3FFF)
+        config1 = (self.voltage_map[v1] << 14) | (pulse1_length & 0x3FFF)
+        config2 = (self.voltage_map[v2] << 14) | (pulse2_length & 0x3FFF)
 
         # push parameters into SM0 FIFO
-        self.sm0.put(d1)
-        self.sm0.put(c1)
-        self.sm0.put(d2)
-        self.sm0.put(c2)
+        self.sm0.put(pulse1_delay)
+        self.sm0.put(config1)
+        self.sm0.put(pulse2_delay)
+        self.sm0.put(config2)
 
         # start trigger + dead-time machines and enable SM0
         self.__arm_common()
