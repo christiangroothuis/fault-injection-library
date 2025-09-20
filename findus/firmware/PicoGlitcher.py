@@ -572,8 +572,8 @@ class PicoGlitcher():
         self.condition = "rising"
         self.number_of_edges = 1
         # analog digital converter
-        self.fastadc = FastADC()
-        self.fastsamples = self.fastadc.init_array()
+        # self.fastadc = FastADC()
+        # self.fastsamples = self.fastadc.init_array()
         self.core1_stopped = True
         # gpio outputs (are configured later as required)
         self.pin_gpios = {}
