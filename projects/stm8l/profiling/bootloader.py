@@ -25,7 +25,7 @@ class BootloaderProfilingGlitcher(PicoGlitcher):
     def read_success_flag(self) -> bool:
         out = self.pico_glitcher.pyb.exec_raw(f"print(int(adc.read_u16()))\n")
 
-        return int(out[0].strip()) > 8000
+        return int(out[0].strip()) > 5000
 
     def classify(self, state: bytes) -> str:
         color = "C"
@@ -88,7 +88,7 @@ class Main:
 
             try:
                 self.glitcher.block(timeout=1)
-                time.sleep(70e-6)
+                time.sleep(100e-6)
                 success = self.glitcher.read_success_flag()
 
                 if success:
