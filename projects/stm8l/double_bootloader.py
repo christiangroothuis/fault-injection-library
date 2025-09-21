@@ -52,7 +52,7 @@ class Main:
                 # range(29400, 29500),
                 range(29460, 29520), # very good
                 # range(30200, 30270),
-                range(31950, 32020),
+                # range(31950, 32020),
             ],
             "delay2": [
                 range(34690, 34750), # seems most promising
@@ -137,8 +137,7 @@ class Main:
                 state = b"timeout"
 
             color = self.glitcher.classify(state)
-            if success:
-                self.db.insert(exp_id, self.parameters["voltage"] * 100, delay1, delay2, length, color, state)
+            self.db.insert(exp_id, self.parameters["voltage"] * 100, delay1, delay2, length, color, state)
             speed = self.glitcher.get_speed(self.start_time, exp_id)
             experiment_base_id = self.db.get_base_experiments_count()
             print(
