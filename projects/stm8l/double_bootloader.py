@@ -106,7 +106,7 @@ class Main:
                 "t1": length,
                 "v1": "VI1",
                 "t2": delay2,
-                "v2": "VI2",
+                "v2": "3.3",
                 "t3": length,
                 "v3": "VI1",
             }
@@ -138,7 +138,8 @@ class Main:
 
             color = self.glitcher.classify(state)
             self.db.insert(exp_id, self.parameters["voltage"] * 100, delay1, delay2, length, color, state)
-            speed = self.glitcher.get_speed(self.start_time, exp_id)
+            if success:
+                speed = self.glitcher.get_speed(self.start_time, exp_id)
             experiment_base_id = self.db.get_base_experiments_count()
             print(
                 self.glitcher.colorize(
