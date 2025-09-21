@@ -46,13 +46,13 @@ class Main:
             "length": 24,
             "voltage": 1.10,
             "delay1": [
-                range(28450, 28550),
-                range(28950, 29000),
+                range(28450, 28540),
+                range(28950, 29020),
                 # range(29240, 29260),
                 # range(29400, 29500),
-                range(29450, 29500), # very good
-                range(30200, 30270),
-                range(31960, 32000),
+                range(29460, 29520), # very good
+                # range(30200, 30270),
+                range(31950, 32020),
             ],
             "delay2": [
                 range(34690, 34750), # seems most promising
@@ -106,7 +106,7 @@ class Main:
                 "t1": length,
                 "v1": "VI1",
                 "t2": delay2,
-                "v2": "3.3",
+                "v2": "VI2",
                 "t3": length,
                 "v3": "VI1",
             }
