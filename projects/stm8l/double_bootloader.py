@@ -3,16 +3,55 @@
 import argparse
 import itertools
 import os
+import pathlib
 import random
+import subprocess
 import sys
 import time
 from dotenv import load_dotenv
 
-from findus import Database, PicoGlitcher
 from projects.stm8l.utils.pushover import send_pushover_notification
 from .utils.psu import PS3005D
 
 RX_PIN = 27
+
+
+class UARTProgrammer:
+    def __init__(self, port: str, proc: str = "stm8gal", baud: int = 115200):
+        self.proc = proc
+        self.port = port
+        self.baud = baud
+
+    def disable_uart(self):
+        subprocess.run(["pinctrl", "set", "14", "ip", "pn"], check=True)
+        subprocess.run(["pinctrl", "set", "15", "ip", "pn"], check=True)
+
+    def enable_uart(self):
+        subprocess.run(["pinctrl", "set", "14", "a0"], check=True)
+        subprocess.run(["pinctrl", "set", "15", "a0"], check=True)
+
+    def read_memory(
+        self, start: int, end: int, outfile: str = "dump.bin", reset: bool = False
+    ) -> pathlib.Path:
+        cmd = [
+            self.proc,
+            f"-b {self.baud}",
+            "-B",
+            "-v0",
+            "-p",
+            self.port,
+            "-r",
+            hex(start),
+            hex(end),
+            outfile,
+        ]
+
+        if not reset:
+            cmd += ["-R", "0"]
+
+        subprocess.run(cmd, check=True)
+
+        return pathlib.Path(outfile).resolve()
 
 
 class BootloaderProfilingGlitcher(PicoGlitcher):
@@ -50,13 +89,15 @@ class Main:
                 # range(28950, 29020),
                 # range(29240, 29260),
                 # range(29400, 29500),
-                range(29460, 29520), # very good
+                range(29460, 29520),  # very good
                 # range(30200, 30270),
                 # range(31950, 32020),
             ],
             "delay2": [
-                range(34690, 34750), # seems most promising
-                range(35150, 35250), # made it a bit wider, but was range(35190, 35240), also very promising
+                range(34690, 34750),  # seems most promising
+                range(
+                    35150, 35250
+                ),  # made it a bit wider, but was range(35190, 35240), also very promising
                 range(35680, 35730),
                 range(36233, 36234),
                 range(37200, 37250),
@@ -82,6 +123,9 @@ class Main:
         self.start_time = int(time.time())
         self.psu = PS3005D(port=args.psu)
 
+        self.programmer = UARTProgrammer(port=self.args.programmer)
+        self.programmer.disable_uart()
+
     def run(self):
         exp_id = 0
 
@@ -98,7 +142,7 @@ class Main:
             delay1 = random.choice(delay1_flattened)
             delay2_flattened = list(itertools.chain.from_iterable(self.parameters["delay2"]))
             delay2 = random.choice(delay2_flattened)
-            delay1 = round(delay1 / 4) * 4 # ensure delay is multiple of 4
+            delay1 = round(delay1 / 4) * 4  # ensure delay is multiple of 4
             delay2 = round(delay2 / 4) * 4
             delay2 = delay2 - (
                 delay1 + self.parameters["length"]
@@ -122,17 +166,35 @@ class Main:
                 success = self.glitcher.read_success_flag()
 
                 if success:
-                    """ 
-                    TODO read flash (0x8000-0x9FFF) and eeprom (0x1000-0x10FF) using UART
-                    Either send 0x7F (bootloader sync byte) to enable bootloader and alert user to attach UART adapter manually
-                    or implement reading in firmware and just dump the data to Pico flash or send over pyboard to host
-                    """
-                    send_pushover_notification(
-                        user_key=os.getenv("PUSHOVER_USER_KEY"),
-                        app_token=os.getenv("PUSHOVER_APP_TOKEN"),
-                        message=f"Successful glitch! with delays={delay1},{delay2} ns, length={length} ns, voltage={self.parameters['voltage']:.2f} V",
-                        title="Successful glitch",
-                    )
+                    if self.args.programmer:
+                        self.programmer.enable_uart()
+                        time.sleep(0.1)
+
+                        self.programmer.read_memory(
+                            start=0x8000,
+                            end=0x9FFF,
+                            outfile=f"flash-{exp_id}.bin",
+                            reset=False,
+                        )
+                        self.programmer.read_memory(
+                            start=0x1000,
+                            end=0x10FF,
+                            outfile=f"eeprom-{exp_id}.bin",
+                            reset=False,
+                        )
+
+                        self.programmer.disable_uart()
+
+                    # send_pushover_notification(
+                    #     user_key=os.getenv("PUSHOVER_USER_KEY"),
+                    #     app_token=os.getenv("PUSHOVER_APP_TOKEN"),
+                    #     message=f"Successful glitch! with delays={delay1},{delay2} ns, length={length} ns, voltage={self.parameters['voltage']:.2f} V",
+                    #     title="Successful glitch",
+                    # )
+
+                    if self.args.programmer:
+                        break
+
                     state = b"success"
                 else:
                     state = b"expected"
@@ -144,7 +206,15 @@ class Main:
 
             color = self.glitcher.classify(state)
             if success:
-                self.db.insert(exp_id, self.parameters["voltage"] * 100, delay1, delay2, length, color, state)
+                self.db.insert(
+                    exp_id,
+                    self.parameters["voltage"] * 100,
+                    delay1,
+                    delay2,
+                    length,
+                    color,
+                    state,
+                )
             speed = self.glitcher.get_speed(self.start_time, exp_id)
             experiment_base_id = self.db.get_base_experiments_count()
             print(
@@ -164,12 +234,17 @@ if __name__ == "__main__":
     )
     p.add_argument(
         "--rpico",
-        default="/dev/ttyUSB1",
+        default="/dev/ttyACM0",
         required=True,
         help="PicoGlitcher serial port",
     )
     p.add_argument(
-        "--psu", default="/dev/ttyUSB0", required=True, help="PSU serial port"
+        "--psu", default="/dev/ttyACM1", required=True, help="PSU serial port"
+    )
+    p.add_argument(
+        "--programmer",
+        default="/dev/ttyAMA0",
+        help="STM8 bootloader programmer serial port",
     )
     p.add_argument("--resume", action="store_true", help="Resume previous database run")
     p.add_argument(
