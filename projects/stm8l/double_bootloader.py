@@ -46,8 +46,8 @@ class Main:
             "length": 24,
             "voltage": 1.10,
             "delay1": [
-                range(28450, 28540),
-                range(28950, 29020),
+                # range(28450, 28540),
+                # range(28950, 29020),
                 # range(29240, 29260),
                 # range(29400, 29500),
                 range(29460, 29520), # very good
@@ -98,6 +98,8 @@ class Main:
             delay1 = random.choice(delay1_flattened)
             delay2_flattened = list(itertools.chain.from_iterable(self.parameters["delay2"]))
             delay2 = random.choice(delay2_flattened)
+            delay1 = round(delay1 / 4) * 4 # ensure delay is multiple of 4
+            delay2 = round(delay2 / 4) * 4
             delay2 = delay2 - (
                 delay1 + self.parameters["length"]
             )  # make delay2 relative
@@ -120,7 +122,11 @@ class Main:
                 success = self.glitcher.read_success_flag()
 
                 if success:
-                    # TODO read flash (0x8000-0x9FFF) and eeprom (0x1000-0x10FF) using UART
+                    """ 
+                    TODO read flash (0x8000-0x9FFF) and eeprom (0x1000-0x10FF) using UART
+                    Either send 0x7F (bootloader sync byte) to enable bootloader and alert user to attach UART adapter manually
+                    or implement reading in firmware and just dump the data to Pico flash or send over pyboard to host
+                    """
                     send_pushover_notification(
                         user_key=os.getenv("PUSHOVER_USER_KEY"),
                         app_token=os.getenv("PUSHOVER_APP_TOKEN"),

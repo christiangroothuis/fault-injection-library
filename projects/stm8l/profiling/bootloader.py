@@ -80,7 +80,10 @@ class Main:
 
         while True:
             delay = int(random.randint(self.parameters["s_delay"], self.parameters["e_delay"]))
+            delay = round(delay / 4) * 4 # ensure delay is multiple of 4
             length = int(random.randint(self.parameters["s_length"], self.parameters["e_length"]))
+            length = round(length / 4) * 4
+
             mul_config = {"t1": length, "v1": "VI1"}
             self.glitcher.arm_multiplexing(delay, mul_config)
             self.glitcher.reset(100e-6)  # reset for 100us
