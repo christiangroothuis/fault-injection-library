@@ -9,6 +9,7 @@ import subprocess
 import sys
 import time
 from dotenv import load_dotenv
+from findus import Database
 
 from projects.stm8l.utils.pushover import send_pushover_notification
 from .utils.psu import PS3005D
