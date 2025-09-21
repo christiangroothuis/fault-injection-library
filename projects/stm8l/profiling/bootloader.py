@@ -44,8 +44,8 @@ class Main:
         self.parameters = {
             "s_length": 24,
             "e_length": 24,
-            "s_delay": 35000,
-            "e_delay": 40000,
+            "s_delay": 25000,
+            "e_delay": 35000,
             "voltage": 1.10,
         }
 
@@ -108,8 +108,7 @@ class Main:
                 state = b"timeout"
 
             color = self.glitcher.classify(state)
-            if success:
-                self.db.insert(exp_id, self.parameters["voltage"] * 100, delay, length, color, state)
+            self.db.insert(exp_id, self.parameters["voltage"] * 100, delay, length, color, state)
             speed = self.glitcher.get_speed(self.start_time, exp_id)
             experiment_base_id = self.db.get_base_experiments_count()
             print(
