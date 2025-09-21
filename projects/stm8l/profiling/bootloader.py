@@ -92,12 +92,6 @@ class Main:
                 success = self.glitcher.read_success_flag()
 
                 if success:
-                    send_pushover_notification(
-                        user_key=os.getenv("PUSHOVER_USER_KEY"),
-                        app_token=os.getenv("PUSHOVER_APP_TOKEN"),
-                        message=f"Successful glitch! with delay={delay} ns, length={length} ns, voltage={self.parameters['voltage']:.2f} V",
-                        title="Successful glitch",
-                    )
                     state = b"success"
                 else:
                     state = b"expected"
