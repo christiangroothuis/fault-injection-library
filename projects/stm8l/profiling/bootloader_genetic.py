@@ -93,7 +93,7 @@ class Main:
             if exp_id % 10000 == 0:
                 self.opt.print_best_performing_bins()
 
-            delay = self.opt.step()
+            delay = self.opt.step()[0]
             delay = round(delay / 4) * 4 # ensure delay is multiple of 4
             length = int(random.randint(self.parameters["s_length"], self.parameters["e_length"]))
             length = round(length / 4) * 4
