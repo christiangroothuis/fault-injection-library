@@ -2,14 +2,13 @@
 
 import argparse
 import itertools
-import os
 import pathlib
 import random
 import subprocess
 import sys
 import time
 from dotenv import load_dotenv
-from findus import Database
+from findus import Database, PicoGlitcher
 
 from projects.stm8l.utils.pushover import send_pushover_notification
 from .utils.psu import PS3005D
@@ -124,8 +123,9 @@ class Main:
         self.start_time = int(time.time())
         self.psu = PS3005D(port=args.psu)
 
-        self.programmer = UARTProgrammer(port=self.args.programmer)
-        self.programmer.disable_uart()
+        if args.programmer:
+            self.programmer = UARTProgrammer(port=self.args.programmer)
+            self.programmer.disable_uart()
 
     def run(self):
         exp_id = 0
@@ -170,7 +170,6 @@ class Main:
                     if self.args.programmer:
                         self.programmer.enable_uart()
                         time.sleep(0.1)
-
                         self.programmer.read_memory(
                             start=0x8000,
                             end=0x9FFF,
@@ -183,7 +182,6 @@ class Main:
                             outfile=f"eeprom-{exp_id}.bin",
                             reset=False,
                         )
-
                         self.programmer.disable_uart()
 
                     # send_pushover_notification(
