@@ -118,7 +118,8 @@ class Main:
                 time.sleep(0.2)
                 state = b"timeout"
 
-            color = self.glitcher.classify(state)
+            color, weight = self.glitcher.classify(state)
+            self.opt.add_experiment(weight, delay)
             self.db.insert(exp_id, self.parameters["voltage"] * 100, delay, length, color, state)
             speed = self.glitcher.get_speed(self.start_time, exp_id)
             experiment_base_id = self.db.get_base_experiments_count()
