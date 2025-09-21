@@ -95,12 +95,11 @@ class Main:
             ],
             "delay2": [
                 range(34690, 34750),  # seems most promising
-                range(
-                    35150, 35250
-                ),  # made it a bit wider, but was range(35190, 35240), also very promising
+                range(35150, 35250),  # was range(35190, 35240), also very promising
                 range(35680, 35730),
                 range(36233, 36234),
                 range(37200, 37250),
+                range(37450, 37550),
             ],
         }
 
