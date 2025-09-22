@@ -176,7 +176,6 @@ class Main:
                         status, flash = self.stm_programmer.read_memory(
                             0x8000,
                             0x2000,
-                            outfile=f"flash-{exp_id}.bin",
                         )
                         print(status, flash[:16], "...")
                         self.programmer.disable_uart()
