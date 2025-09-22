@@ -19,6 +19,49 @@ from .utils.reader import STM8Reader
 
 RX_PIN = 27
 
+import os, mmap, struct
+
+# GPFSEL1 controls GPIO10..19. GPIO14 lives here.
+GPFSEL1_OFFSET = 0x04
+GPIO14_SHIFT = 3 * (14 - 10)  # 12
+FSEL_MASK_3BITS = 0b111
+FSEL_INPUT = 0b000
+FSEL_ALT0 = 0b100  # UART0 TX on GPIO14
+
+
+class Pin14Mux:
+    __slots__ = ("fd", "mm", "mv", "_pack", "_unpack")
+
+    def __init__(self):
+        self.fd = os.open("/dev/gpiomem", os.O_RDWR | os.O_SYNC)
+        self.mm = mmap.mmap(
+            self.fd, 0x1000, mmap.MAP_SHARED, mmap.PROT_READ | mmap.PROT_WRITE
+        )
+        self.mv = memoryview(self.mm)
+        st = struct.Struct("<I")
+        self._pack, self._unpack = st.pack, st.unpack_from
+
+    def close(self):
+        self.mv.release()
+        self.mm.close()
+        os.close(self.fd)
+
+    def _rw_gpfsel1(self):
+        val = self._unpack(self.mv, GPFSEL1_OFFSET)[0]
+        return val
+
+    def enable_uart_tx_alt0(self):
+        v = self._rw_gpfsel1()
+        v &= ~(FSEL_MASK_3BITS << GPIO14_SHIFT)
+        v |= FSEL_ALT0 << GPIO14_SHIFT
+        self.mv[GPFSEL1_OFFSET : GPFSEL1_OFFSET + 4] = self._pack(v)
+
+    def disable_to_input(self):
+        v = self._rw_gpfsel1()
+        v &= ~(FSEL_MASK_3BITS << GPIO14_SHIFT)  # set to INPUT (000)
+        # (optional) leave as pure input; add pulls separately if you want.
+        self.mv[GPFSEL1_OFFSET : GPFSEL1_OFFSET + 4] = self._pack(v)
+
 
 def disable_tx():
     subprocess.run(["pinctrl", "set", "14", "ip", "pn"], check=True)
@@ -78,10 +121,7 @@ class Main:
         }
 
         if args.programmer:
-            self.pi = pigpio.pi()
-            assert self.pi.connected
-            self.pi.set_mode(14, pigpio.INPUT)
-            self.pi.set_pull_up_down(14, pigpio.PUD_OFF)
+            self.mux = Pin14Mux()
             self.programmer = STM8Reader(port=args.programmer)
 
         self.glitcher = BootloaderProfilingGlitcher()
@@ -102,7 +142,6 @@ class Main:
         )
         self.start_time = int(time.time())
         self.psu = PS3005D(port=args.psu)
-
 
     def run(self):
         exp_id = 0
@@ -147,22 +186,30 @@ class Main:
                 self.glitcher.block(timeout=1)
                 time.sleep(100e-6)  # wait for rx to go high if success
                 success = self.glitcher.read_success_flag()
-                print(self.glitcher.pico_glitcher.pyb.exec_raw(f"print(int(adc.read_u16()))\n"))
+                print(
+                    self.glitcher.pico_glitcher.pyb.exec_raw(
+                        f"print(int(adc.read_u16()))\n"
+                    )
+                )
 
                 if success and exp_id > 1:
                     if self.args.programmer:
                         # enable_tx()
-                        self.pi.set_mode(14, pigpio.ALT0)
+                        self.mux.enable_uart_tx_alt0()
                         time.sleep(0.9)
-                        print(self.glitcher.pico_glitcher.pyb.exec_raw(f"print(int(adc.read_u16()))\n"))
+                        print(
+                            self.glitcher.pico_glitcher.pyb.exec_raw(
+                                f"print(int(adc.read_u16()))\n"
+                            )
+                        )
                         elapsed = time.time() - start_time
                         print(f"Enabling TX took {elapsed:.6f} seconds")
                         self.programmer.enter_bootloader()
                         flash = self.programmer.read_memory(0x8000, 0x2000)
                         eeprom = self.programmer.read_memory(0x1000, 0x00FF)
                         print(hexlify(flash)[:16], "...")
-                        self.pi.set_mode(14, pigpio.INPUT)
-                        self.pi.set_pull_up_down(14, pigpio.PUD_DOWN)
+                        print(hexlify(eeprom)[:16], "...")
+                        self.mux.disable_to_input()
 
                     # send_pushover_notification(
                     #     user_key=os.getenv("PUSHOVER_USER_KEY"),
