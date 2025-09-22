@@ -104,7 +104,7 @@ class Main:
                 self.parameters["length_step"],
             ):
                 for delay in range(
-                    self.parameters["s_delay"], self.parameters["e_delay"]
+                    self.parameters["s_delay"], self.parameters["e_delay"], self.parameters["delay_step"]
                 ):
                     for _ in range(self.parameters["n_glitches"]):
                         length = round(length / 4) * 4  # ensure length is multiple of 4
