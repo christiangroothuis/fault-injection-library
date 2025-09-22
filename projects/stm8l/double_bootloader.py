@@ -8,14 +8,13 @@ import subprocess
 import sys
 import time
 from dotenv import load_dotenv
-import serial
 from binascii import hexlify
-from findus import Database, PicoGlitcher, STM8Programmer
+from findus import Database, PicoGlitcher
 
 from findus.findus import BlockTimeoutError
 from projects.stm8l.utils.pushover import send_pushover_notification
-from utils.psu import PS3005D
-from utils.reader import STM8Reader
+from .utils.psu import PS3005D
+from .utils.reader import STM8Reader
 
 RX_PIN = 27
 
