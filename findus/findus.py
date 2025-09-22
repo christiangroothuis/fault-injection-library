@@ -486,9 +486,9 @@ class PicoGlitcherInterface(MicroPythonScript):
     def arm_multiplexing(self, delay:int, mul_config:dict, vinit:str = "config"):
         return self.pyb.exec(f'mp.arm_multiplexing({delay}, {mul_config}, "{vinit}")')
 
-    def arm_double_multiplexing(self, delay1:int, length1:int, delay2:int, length2:int, v1:str = "1.8", v2:str = "1.8"):
-        return self.pyb.exec(f'mp.arm_double_multiplexing({delay1}, {length1}, {delay2}, {length2}, "{v1}", "{v2}")')
-    
+    def arm_double_multiplexing(self, delay1:int, length1:int, v1:str, delay2:int, length2:int, v2:str):
+        return self.pyb.exec(f'mp.arm_double_multiplexing({delay1}, {length1}, "{v1}", {delay2}, {length2}, "{v2}")')
+
     def arm_pulseshaping_from_config(self, delay:int, ps_config:list[list[int]]):
         return self.pyb.exec(f'mp.arm_pulseshaping_from_config({delay}, {ps_config})')
 
@@ -855,7 +855,7 @@ class PicoGlitcher(Glitcher):
         """
         self.pico_glitcher.arm_multiplexing(delay, mul_config, vinit)
 
-    def arm_double_multiplexing(self, delay1:int, length1:int, delay2:int, length2:int, v1:str = "1.8", v2:str = "1.8"):
+    def arm_double_multiplexing(self, delay1:int, length1:int, v1:str, delay2:int, length2:int, v2:str):
         """
         Arm the Pico Glitcher and wait for the trigger condition. The trigger condition can either be when the reset on the target is released or when a certain pattern is observed in the serial communication. This functions emits two multiplexing glitches after a given time, each measured separately from the trigger condition.
         Be sure that `delay2 > delay1 + length1`.
@@ -868,7 +868,7 @@ class PicoGlitcher(Glitcher):
             v1: Voltage level of the first glitch, e.g. "GND", "1.8", "3.3", "config", "VI1", "VI2".
             v2: Voltage level of the second glitch, e.g. "GND", "1.8", "3.3", "config", "VI1", "VI2".
         """
-        self.pico_glitcher.arm_double_multiplexing(delay1, length1, delay2, length2, v1, v2)
+        self.pico_glitcher.arm_double_multiplexing(delay1, length1, v1, delay2, length2, v2)
 
     def arm_pulseshaping_from_config(self, delay:int, ps_config:list[list[int]]):
         """

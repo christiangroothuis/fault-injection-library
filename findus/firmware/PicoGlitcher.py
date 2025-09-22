@@ -313,48 +313,50 @@ def multiplex_vin2(MUX_PIO_INIT=0b10):
     irq(clear, 7)
     push(block)
 
-# @asm_pio(set_init = (Globals.MUX1_PIO_INIT, Globals.MUX0_PIO_INIT), out_init = (Globals.MUX1_PIO_INIT, Globals.MUX0_PIO_INIT), sideset_init=PIO.OUT_LOW, out_shiftdir=PIO.SHIFT_RIGHT)
-# def multiplex_double(MUX_PIO_INIT=0b10):
-#     # block until first delay received
-#     pull(block)
-#     mov(x, osr)               # X = delay1
+@asm_pio(set_init = (Globals.MUX1_PIO_INIT, Globals.MUX0_PIO_INIT), out_init = (Globals.MUX1_PIO_INIT, Globals.MUX0_PIO_INIT), sideset_init=PIO.OUT_LOW, out_shiftdir=PIO.SHIFT_RIGHT)
+def multiplex_double(MUX_PIO_INIT=Globals.MUX_PIO_INIT):
+    # block until first delay received
+    pull(block)
+    out(x, 16)               # X = delay1
+    out(isr, 16)             # ISR = delay2
 
-#     # block until first config received (t1 & v1)
-#     pull(block)
-#     mov(isr, osr)             # ISR = cfg1
+    # block until first config received (t1 & v1)
+    pull(block)               # OSR = cfg
 
-#     # block until second delay received
-#     pull(block)
-#     mov(y, osr)               # Y = delay2
+    # wait for trigger condition, enable glitch_en
+    wait(1, irq, 7).side(1)
 
-#     # block until second config received (t2 & v2)
-#     pull(block)               # OSR = cfg2
+    """ 
+    state right now:
+    X: delay1
+    OSR: v2 << 30 | t2 << 16 | v1 << 14 | t1
+    ISR: delay2
+    """
+    # first multiplex pulse
+    label("delay1_loop")
+    jmp(x_dec, "delay1_loop") # wait delay1 cycles
 
-#     # wait for trigger condition, enable glitch_en
-#     wait(1, irq, 7).side(1)
+    out(y, 14)               
+    out(pins, 2)              # switch MUX to v1
+    label("length1_loop")
+    jmp(y_dec, "length1_loop") # hold v1 for length1
 
-#     # first multiplex pulse
-#     label("delay1_loop")
-#     jmp(x_dec, "delay1_loop") # wait delay1 cycles
-#     mov(osr, isr)             # reload cfg1
-#     out(y, 14)                # Y = cfg1 >> 14 (length1)
-#     out(pins, 2)              # switch MUX to v1
-#     label("pulse1_loop")
-#     jmp(y_dec, "pulse1_loop") # hold v1 for length1
-#     set(pins, MUX_PIO_INIT)  # back to idle
+    set(pins, MUX_PIO_INIT)  # back to idle
 
-#     # second multiplex pulse
-#     label("delay2_loop")
-#     jmp(y_dec, "delay2_loop") # wait delay2 cycles
-#     out(y, 14)                # Y = cfg2 >> 14 (length2)
-#     out(pins, 2)              # switch MUX to v2
-#     label("pulse2_loop")
-#     jmp(y_dec, "pulse2_loop") # hold v2 for length2
-#     set(pins, MUX_PIO_INIT).side(0b0)  # idle + disable glitch_en
+    # second multiplex pulse
+    mov(y, isr)            # Y = delay2
+    label("delay2_loop")
+    jmp(y_dec, "delay2_loop") # wait delay2 cycles
+    out(y, 14)                # Y = cfg2 >> 14 (length2)
+    out(pins, 2)              # switch MUX to v2
+    label("length2_loop")
+    jmp(y_dec, "length2_loop") # hold v2 for length2
 
-#     # signal done
-#     irq(clear, 7)
-#     push(block)
+    set(pins, MUX_PIO_INIT).side(0b0)  # idle + disable glitch_en
+
+    # signal done
+    irq(clear, 7)
+    push(block)
 
 @asm_pio()
 def tio_trigger_with_dead_time_rising_edge():
@@ -1138,7 +1140,7 @@ class PicoGlitcher():
 
         self.__arm_common()
 
-    def arm_double_multiplexing(self, delay1: int, length1: int, delay2: int, length2: int, v1: str = "1.8", v2: str = "1.8"):
+    def arm_double_multiplexing(self, delay1: int, length1: int, v1: str, delay2: int, length2: int, v2: str):
         """
         Arm two back-to-back multiplex glitches on one trigger:
         1) after delay1 ns, switch to v1 for length1 ns
@@ -1158,18 +1160,18 @@ class PicoGlitcher():
         
         if delay2 <= delay1 + length1:
             raise Exception(f"Second glitch collides with first one; delay2 too short.")
-        
+
         delay2 = delay2 - (delay1 + length1)
 
         # state machine for double multiplex glitch
         self.sm0.active(0)
-        # self.sm0.init(
-        #     multiplex_double,
-        #     freq=self.frequency,
-        #     set_base=self.pin_glitch,
-        #     out_base=self.pin_glitch,
-        #     sideset_base=self.pin_glitch_en
-        # )
+        self.sm0.init(
+            multiplex_double,
+            freq=self.frequency,
+            set_base=self.pin_glitch,
+            out_base=self.pin_glitch,
+            sideset_base=self.pin_glitch_en
+        )
 
         # convert nanoseconds to PIO clock cycles
         cycles_per_ns = 1_000_000_000 // self.frequency
@@ -1181,18 +1183,23 @@ class PicoGlitcher():
 
         if pulse1_length > 2**14 or pulse2_length > 2**14:
             raise Exception(f"Pulse length exceeds maximum value.")
-        if pulse1_delay > 2**32 or pulse2_delay > 2**32:
-            raise Exception(f"Pulse delay exceeds maximum value.")
         
-        # pack each config: bits [0..13]=length, bits [14..15]=voltage index
-        config1 = (self.voltage_map[v1] << 14) | (pulse1_length & 0x3FFF)
-        config2 = (self.voltage_map[v2] << 14) | (pulse2_length & 0x3FFF)
+        if delay1 > 2**16 or delay2 > 2**16:
+            raise Exception(f"Pulse delay exceeds maximum value.")
+
+        v1 = self.voltage_map[v1]
+        v2 = self.voltage_map[v2]
+        length1 = pulse1_length & 0x3FFF
+        length2 = pulse2_length & 0x3FFF
+        delay1 = pulse1_delay & 0xFFFF
+        delay2 = pulse2_delay & 0xFFFF
+
+        delays = delay2 << 16 | delay1
+        config = v2 << 30 | length2 << 16 | v1 << 14 | length1
 
         # push parameters into SM0 FIFO
-        self.sm0.put(pulse1_delay)
-        self.sm0.put(config1)
-        self.sm0.put(pulse2_delay)
-        self.sm0.put(config2)
+        self.sm0.put(delays)
+        self.sm0.put(config)
 
         # start trigger + dead-time machines and enable SM0
         self.__arm_common()
