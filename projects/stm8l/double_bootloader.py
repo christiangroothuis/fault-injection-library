@@ -153,7 +153,7 @@ class Main:
                     if self.args.programmer:
                         # enable_tx()
                         self.pi.set_mode(14, pigpio.ALT0)
-                        time.sleep(2)
+                        time.sleep(0.9)
                         print(self.glitcher.pico_glitcher.pyb.exec_raw(f"print(int(adc.read_u16()))\n"))
                         elapsed = time.time() - start_time
                         print(f"Enabling TX took {elapsed:.6f} seconds")
