@@ -122,7 +122,13 @@ class Main:
 
         if args.programmer:
             # self.mux = Pin14Mux()
-            disable_tx()
+            self.pi = pigpio.pi()
+            assert self.pi.connected
+
+            # disable_tx()
+            self.pi.set_mode(14, pigpio.INPUT)
+            self.pi.set_pull_up_down(14, pigpio.PUD_OFF)
+
             self.programmer = STM8Reader(port=args.programmer)
 
         self.glitcher = BootloaderProfilingGlitcher()
@@ -188,7 +194,9 @@ class Main:
                 time.sleep(100e-6)  # wait for rx to go high if success
                 success = self.glitcher.read_success_flag()
                 # self.mux.enable_uart_tx_alt0()
-                enable_tx()
+                # enable_tx()
+
+                self.pi.set_mode(14, pigpio.ALT0)
 
                 if success:
                     if self.args.programmer:
@@ -200,7 +208,10 @@ class Main:
                         eeprom = self.programmer.read_memory(0x1000, 0x00FF)
                         print(hexlify(flash)[:16], "...")
                         print(hexlify(eeprom)[:16], "...")
-                        disable_tx()
+                        # disable_tx()
+
+                        self.pi.set_mode(14, pigpio.INPUT)
+                        self.pi.set_pull_up_down(14, pigpio.PUD_OFF)
                         # self.mux.disable_to_input()
 
                     # send_pushover_notification(
