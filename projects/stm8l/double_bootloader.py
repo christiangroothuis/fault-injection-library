@@ -76,6 +76,11 @@ class Main:
             ],
         }
 
+        if args.programmer:
+            disable_uart()
+            time.sleep(0.5)
+            self.programmer = STM8Reader(port=args.programmer)
+
         self.glitcher = BootloaderProfilingGlitcher()
         self.glitcher.init(port=args.rpico, enable_vtarget=False)
         self.glitcher.change_config_and_reset("mux_vinit", "3.3")
@@ -95,10 +100,6 @@ class Main:
         self.start_time = int(time.time())
         self.psu = PS3005D(port=args.psu)
 
-        if args.programmer:
-            disable_uart()
-            time.sleep(0.5)
-            self.programmer = STM8Reader(port=args.programmer)
 
     def run(self):
         exp_id = 0
