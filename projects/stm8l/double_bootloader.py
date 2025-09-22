@@ -77,7 +77,7 @@ class Main:
         }
 
         if args.programmer:
-            # disable_uart()
+            disable_uart()
             time.sleep(0.5)
             self.programmer = STM8Reader(port=args.programmer)
 
@@ -149,7 +149,7 @@ class Main:
                 if success and exp_id > 1:
                     if self.args.programmer:
                         enable_uart()
-                        time.sleep(0.5)
+                        time.sleep(0.9)
                         print(self.glitcher.pico_glitcher.pyb.exec_raw(f"print(int(adc.read_u16()))\n"))
                         elapsed = time.time() - start_time
                         print(f"Enabling UART took {elapsed:.6f} seconds")
