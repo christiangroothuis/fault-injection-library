@@ -77,7 +77,7 @@ class Main:
         }
 
         if args.programmer:
-            disable_uart()
+            # disable_uart()
             time.sleep(0.5)
             self.programmer = STM8Reader(port=args.programmer)
 
