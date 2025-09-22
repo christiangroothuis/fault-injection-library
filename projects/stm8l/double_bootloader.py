@@ -165,6 +165,7 @@ class Main:
                 if success:
                     if self.args.programmer:
                         self.programmer.enable_uart()
+                        time.sleep(0.3)
                         self.programmer.read_memory(
                             start=0x1000,
                             end=0x10FF,
