@@ -23,29 +23,25 @@ class UARTProgrammer:
         self.baud = baud
 
     def disable_uart(self):
-        subprocess.run(["pinctrl", "set", "14", "ip", "pn"], check=True)
-        subprocess.run(["pinctrl", "set", "15", "ip", "pn"], check=True)
+        subprocess.run(["pinctrl", "set", "14,15", "ip", "pn"], check=True)
 
     def enable_uart(self):
-        subprocess.run(["pinctrl", "set", "14", "a0"], check=True)
-        subprocess.run(["pinctrl", "set", "15", "a0"], check=True)
+        subprocess.run(["pinctrl", "set", "14,15", "a0"], check=True)
 
     def read_memory(
-        self, start: int, end: int, outfile: str = "dump.bin", reset: bool = False
+        self, start: int, end: int, outfile: str = "dump.bin"
     ) -> pathlib.Path:
         cmd = [
             self.proc,
             "-b", str(self.baud),
             "-B",
             "-v", "0",
+            "-R", "0",
             "-p",
             self.port,
             "-r", hex(start), hex(end),
             outfile,
         ]
-
-        if not reset:
-            cmd += ["-R", "0"]
 
         subprocess.run(cmd, check=True)
 
@@ -166,18 +162,16 @@ class Main:
                 if success:
                     if self.args.programmer:
                         self.programmer.enable_uart()
-                        time.sleep(0.1)
+                        time.sleep(0.2)
                         self.programmer.read_memory(
                             start=0x8000,
                             end=0x9FFF,
                             outfile=f"flash-{exp_id}.bin",
-                            reset=False,
                         )
                         self.programmer.read_memory(
                             start=0x1000,
                             end=0x10FF,
                             outfile=f"eeprom-{exp_id}.bin",
-                            reset=False,
                         )
                         self.programmer.disable_uart()
 
