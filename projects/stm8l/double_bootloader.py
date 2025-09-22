@@ -144,12 +144,12 @@ class Main:
 
                 if success:
                     if self.args.programmer:
-                        self.programmer.enable_uart()
+                        enable_uart()
                         self.programmer.enter_bootloader()
                         flash = self.programmer.read_memory(0x8000, 0x2000)
                         eeprom = self.programmer.read_memory(0x1000, 0x00FF)
                         print(hexlify(flash)[:16], "...")
-                        self.programmer.disable_uart()
+                        disable_uart()
 
                     # send_pushover_notification(
                     #     user_key=os.getenv("PUSHOVER_USER_KEY"),
