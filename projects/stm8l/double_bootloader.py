@@ -35,14 +35,12 @@ class UARTProgrammer:
     ) -> pathlib.Path:
         cmd = [
             self.proc,
-            f"-b", str(self.baud),
+            "-b", str(self.baud),
             "-B",
-            "-v0",
+            "-v", "0",
             "-p",
             self.port,
-            "-r",
-            hex(start),
-            hex(end),
+            "-r", hex(start), hex(end),
             outfile,
         ]
 
