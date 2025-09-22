@@ -1,9 +1,18 @@
+import subprocess
 import serial
 import time
 
 
+def disable_tx():
+    subprocess.run(["pinctrl", "set", "14", "ip", "pn"], check=True)
+
+
+def enable_tx():
+    subprocess.run(["pinctrl", "set", "14", "a0"], check=True)
+
+
 class STM8Reader:
-    ACK   = 0x79
+    ACK = 0x79
     SYNCH = 0x7F
 
     def __init__(self, port, baud=115200, timeout=1.0, guard_ms=10):
@@ -17,6 +26,7 @@ class STM8Reader:
     def enter_bootloader(self, tries=1):
         """Open 8E1, guard delay, flush, send a small 0x7F train; expect ACK (0x79)."""
         self._open_8e1()
+        enable_tx()
         time.sleep(self.guard_ms / 1000.0)
         self.ser.reset_input_buffer()
 
@@ -52,14 +62,19 @@ class STM8Reader:
 
     def close(self):
         if self.ser:
-            try: self.ser.close()
-            finally: self.ser = None
+            try:
+                self.ser.close()
+            finally:
+                self.ser = None
+        disable_tx()
 
     # ---------- internals ----------
     def _open_8e1(self):
         if self.ser:
-            try: self.ser.close()
-            except: pass
+            try:
+                self.ser.close()
+            except:
+                pass
         self.ser = serial.Serial(
             self.port,
             baudrate=self.baud,
@@ -68,7 +83,9 @@ class STM8Reader:
             stopbits=serial.STOPBITS_ONE,
             timeout=self.timeout,
             write_timeout=1.0,
-            rtscts=False, dsrdtr=False, xonxoff=False,
+            rtscts=False,
+            dsrdtr=False,
+            xonxoff=False,
         )
         self.ser.reset_input_buffer()
         self.ser.reset_output_buffer()
@@ -100,12 +117,12 @@ class STM8Reader:
         This is robust against a stray sampled edge right after muxing the pins.
         """
         self.ser.reset_input_buffer()
-        for _ in range(6):              # up to 6 attempts in one train
+        for _ in range(6):  # up to 6 attempts in one train
             self._write(bytes([self.SYNCH]))
             a = self._read_exact(1, overall_timeout=0.25)
             if a == bytes([self.ACK]):
                 return True
-            time.sleep(0.003)          # small gap between SYNCH bytes
+            time.sleep(0.003)  # small gap between SYNCH bytes
         return False
 
     def _read_block(self, addr, count):
@@ -114,24 +131,29 @@ class STM8Reader:
         self.ser.reset_input_buffer()
 
         # 1) CMD + complement
-        self._write(b"\x11\xEE")
+        self._write(b"\x11\xee")
         if not self._expect_ack():
             # Retry once; often the very first command after sync is the picky one
             time.sleep(0.008)
             self.ser.reset_input_buffer()
-            self._write(b"\x11\xEE")
+            self._write(b"\x11\xee")
             if not self._expect_ack():
                 return None
 
         # 2) 32-bit address (MSB..LSB) + XOR
-        a3=(addr>>24)&0xFF; a2=(addr>>16)&0xFF; a1=(addr>>8)&0xFF; a0=addr&0xFF
-        self._write(bytes([a3,a2,a1,a0,(a3^a2^a1^a0)&0xFF]))
-        if not self._expect_ack(): return None
+        a3 = (addr >> 24) & 0xFF
+        a2 = (addr >> 16) & 0xFF
+        a1 = (addr >> 8) & 0xFF
+        a0 = addr & 0xFF
+        self._write(bytes([a3, a2, a1, a0, (a3 ^ a2 ^ a1 ^ a0) & 0xFF]))
+        if not self._expect_ack():
+            return None
 
         # 3) length (N-1) + complement
         n1 = (count - 1) & 0xFF
         self._write(bytes([n1, (0xFF - n1) & 0xFF]))
-        if not self._expect_ack(): return None
+        if not self._expect_ack():
+            return None
 
         # 4) data
         return self._read_exact(count, overall_timeout=2.0)

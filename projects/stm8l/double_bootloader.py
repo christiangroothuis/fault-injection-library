@@ -82,6 +82,7 @@ class BootloaderProfilingGlitcher(PicoGlitcher):
     def read_success_flag(self) -> bool:
         out = self.pico_glitcher.pyb.exec_raw(f"print(int(adc.read_u16()))\n")
 
+        print(out)
         return int(out[0].strip()) > 5000
 
     def classify(self, state: bytes) -> str:
@@ -121,7 +122,7 @@ class Main:
         }
 
         if args.programmer:
-            self.mux = Pin14Mux()
+            # self.mux = Pin14Mux()
             self.programmer = STM8Reader(port=args.programmer)
 
         self.glitcher = BootloaderProfilingGlitcher()
@@ -186,25 +187,26 @@ class Main:
                 self.glitcher.block(timeout=1)
                 time.sleep(100e-6)  # wait for rx to go high if success
                 success = self.glitcher.read_success_flag()
-                self.mux.enable_uart_tx_alt0()
+                # self.mux.enable_uart_tx_alt0()
 
                 if success:
                     if self.args.programmer:
                         # enable_tx()
                         time.sleep(0.9)
-                        print(
-                            self.glitcher.pico_glitcher.pyb.exec_raw(
-                                f"print(int(adc.read_u16()))\n"
-                            )
-                        )
+                        # print(
+                        #     self.glitcher.pico_glitcher.pyb.exec_raw(
+                        #         f"print(int(adc.read_u16()))\n"
+                        #     )
+                        # )
                         elapsed = time.time() - start_time
                         print(f"Enabling TX took {elapsed:.6f} seconds")
                         self.programmer.enter_bootloader()
                         flash = self.programmer.read_memory(0x8000, 0x2000)
                         eeprom = self.programmer.read_memory(0x1000, 0x00FF)
+                        self.programmer.close()
                         print(hexlify(flash)[:16], "...")
                         print(hexlify(eeprom)[:16], "...")
-                        self.mux.disable_to_input()
+                        # self.mux.disable_to_input()
 
                     # send_pushover_notification(
                     #     user_key=os.getenv("PUSHOVER_USER_KEY"),
