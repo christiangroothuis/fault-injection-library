@@ -35,7 +35,7 @@ class UARTProgrammer:
     ) -> pathlib.Path:
         cmd = [
             self.proc,
-            f"-b{self.baud}",
+            f"-b", str(self.baud),
             "-B",
             "-v0",
             "-p",
