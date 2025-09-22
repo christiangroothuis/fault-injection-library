@@ -2,9 +2,7 @@ import serial
 import time
 
 
-class STM8Reader:import time, serial
-
-class STM8BootloaderSerial8E1:
+class STM8Reader:
     ACK   = 0x79
     SYNCH = 0x7F
 
