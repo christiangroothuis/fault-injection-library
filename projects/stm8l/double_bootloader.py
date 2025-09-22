@@ -168,16 +168,17 @@ class Main:
                     if self.args.programmer:
                         self.programmer.enable_uart()
                         self.stm_programmer.bootloader_enter()
-                        self.stm_programmer.read_memory(
-                            start=0x1000,
-                            end=0x10FF,
-                            outfile=f"eeprom-{exp_id}.bin",
-                        )
-                        self.stm_programmer.read_memory(
-                            start=0x8000,
-                            end=0x9FFF,
+                        # self.stm_programmer.read_memory(
+                        #     0x1000,
+                        #     0xFF,
+                        #     outfile=f"eeprom-{exp_id}.bin",
+                        # )
+                        status, flash = self.stm_programmer.read_memory(
+                            0x8000,
+                            0x2000,
                             outfile=f"flash-{exp_id}.bin",
                         )
+                        print(status, flash[:16], "...")
                         self.programmer.disable_uart()
                         # self.programmer.read_memory(
                         #     start=0x1000,
