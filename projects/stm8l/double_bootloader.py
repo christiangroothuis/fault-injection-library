@@ -141,12 +141,12 @@ class Main:
                 self.glitcher.block(timeout=1)
                 time.sleep(100e-6)  # wait for rx to go high if success
                 success = self.glitcher.read_success_flag()
-                print(self.pico_glitcher.pyb.exec_raw(f"print(int(adc.read_u16()))\n"))
+                print(self.glitcher.pico_glitcher.pyb.exec_raw(f"print(int(adc.read_u16()))\n"))
 
                 if success:
                     if self.args.programmer:
                         enable_uart()
-                        print(self.pico_glitcher.pyb.exec_raw(f"print(int(adc.read_u16()))\n"))
+                        print(self.glitcher.pico_glitcher.pyb.exec_raw(f"print(int(adc.read_u16()))\n"))
                         self.programmer.enter_bootloader()
                         flash = self.programmer.read_memory(0x8000, 0x2000)
                         eeprom = self.programmer.read_memory(0x1000, 0x00FF)
