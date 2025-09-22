@@ -143,7 +143,7 @@ class Main:
                 success = self.glitcher.read_success_flag()
                 print(self.glitcher.pico_glitcher.pyb.exec_raw(f"print(int(adc.read_u16()))\n"))
 
-                if success:
+                if success and exp_id > 1:
                     if self.args.programmer:
                         enable_uart()
                         time.sleep(1)
