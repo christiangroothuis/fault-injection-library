@@ -185,7 +185,7 @@ class Main:
             try:
                 self.glitcher.block(timeout=1)
                 time.sleep(100e-6)  # wait for rx to go high if success
-                # success = self.glitcher.read_success_flag()
+                success = self.glitcher.read_success_flag()
                 self.mux.enable_uart_tx_alt0()
                 # print(
                 #     self.glitcher.pico_glitcher.pyb.exec_raw(
