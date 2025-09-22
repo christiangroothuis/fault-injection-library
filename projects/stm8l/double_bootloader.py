@@ -149,10 +149,10 @@ class Main:
                 if success and exp_id > 1:
                     if self.args.programmer:
                         enable_tx()
-                        time.sleep(0.9)
+                        time.sleep(2)
                         print(self.glitcher.pico_glitcher.pyb.exec_raw(f"print(int(adc.read_u16()))\n"))
                         elapsed = time.time() - start_time
-                        print(f"Enabling UART took {elapsed:.6f} seconds")
+                        print(f"Enabling TX took {elapsed:.6f} seconds")
                         self.programmer.enter_bootloader()
                         flash = self.programmer.read_memory(0x8000, 0x2000)
                         eeprom = self.programmer.read_memory(0x1000, 0x00FF)
