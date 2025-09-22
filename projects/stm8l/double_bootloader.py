@@ -77,8 +77,7 @@ class Main:
         }
 
         if args.programmer:
-            disable_uart()
-            time.sleep(0.5)
+            # disable_uart()
             self.programmer = STM8Reader(port=args.programmer)
 
         self.glitcher = BootloaderProfilingGlitcher()
