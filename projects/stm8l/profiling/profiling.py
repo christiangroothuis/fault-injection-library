@@ -49,11 +49,13 @@ class Main:
         self.args = args
         self.parameters = {
             "s_length": 4,
+            "e_length": 100,
             "length_step": 4,
-            "s_delay": 1875,
-            "e_delay": 1900,
-            "s_voltage": 0.90,
-            "e_voltage": 1.60,
+            "s_delay": 1850,
+            "e_delay": 1920,
+            "delay_step": 16,
+            "s_voltage": 0.60,
+            "e_voltage": 2.20,
             "voltage_step": 0.01,
             "n_glitches": 500,
         }
@@ -96,62 +98,54 @@ class Main:
             self.psu.set_voltage(voltage)
             time.sleep(0.1)
 
-            length_band = self.parameters["length_step"] * 4
-            estimated_optimal_length = round(32 * voltage / 4) * 4
-
             for length in np.arange(
-                min(
-                    max(
-                        estimated_optimal_length - length_band,
-                        self.parameters["s_length"],
-                    ),
-                    12,
-                ),
-                min(estimated_optimal_length + length_band + self.parameters["length_step"], 46),
+                self.parameters["s_length"],
+                self.parameters["e_length"],
                 self.parameters["length_step"],
             ):
-                length = int(length)
-                for _ in range(self.parameters["n_glitches"]):
-                    delay = random.randint(
-                        self.parameters["s_delay"], self.parameters["e_delay"]
-                    )
-                    mul_config = {"t1": length, "v1": "VI1"}
-                    self.glitcher.arm_multiplexing(delay, mul_config)
-                    self.glitcher.reset(200e-6)  # reset for 50us
-                    success = False
+                for delay in range(
+                    self.parameters["s_delay"], self.parameters["e_delay"]
+                ):
+                    for _ in range(self.parameters["n_glitches"]):
+                        length = round(length / 4) * 4  # ensure length is multiple of 4
+                        delay = round(delay / 4) * 4  # ensure delay is multiple of 4
 
-                    try:
-                        self.glitcher.block(timeout=0.1)
-                        time.sleep(60e-6)
-                        success = self.glitcher.read_success_flag()
-                        reset = self.glitcher.read_reset_flag()
+                        self.glitcher.arm_double_multiplexing(delay, length, "VI1", delay + length + 300, length, "3.3")
+                        self.glitcher.reset(200e-6)  # reset for 50us
+                        success = False
 
+                        try:
+                            self.glitcher.block(timeout=0.1)
+                            time.sleep(60e-6)
+                            success = self.glitcher.read_success_flag()
+                            reset = self.glitcher.read_reset_flag()
+
+                            if success:
+                                state = b"success"
+                            elif reset:
+                                state = b"reset"
+                            else:
+                                state = b"expected"
+                        except:
+                            print("[-] Timeout received in block(). Continuing.")
+                            self.glitcher.power_cycle_reset(0.2)
+                            time.sleep(0.2)
+                            state = b"timeout"
+
+                        color = self.glitcher.classify(state)
                         if success:
-                            state = b"success"
-                        elif reset:
-                            state = b"reset"
-                        else:
-                            state = b"expected"
-                    except:
-                        print("[-] Timeout received in block(). Continuing.")
-                        self.glitcher.power_cycle_reset(0.2)
-                        time.sleep(0.2)
-                        state = b"timeout"
-
-                    color = self.glitcher.classify(state)
-                    if success:
-                        self.db.insert(
-                            exp_id, voltage * 100, delay, length, color, state
+                            self.db.insert(
+                                exp_id, voltage * 100, delay, length, color, state
+                            )
+                        speed = self.glitcher.get_speed(self.start_time, exp_id)
+                        experiment_base_id = self.db.get_base_experiments_count()
+                        print(
+                            self.glitcher.colorize(
+                                f"[+] Experiment {exp_id}\t{experiment_base_id}\t({speed})\t{voltage:.2f}\t{delay:>{len(str(self.parameters['e_delay']))}}\t{length}\t{color}\t{state}",
+                                color,
+                            )
                         )
-                    speed = self.glitcher.get_speed(self.start_time, exp_id)
-                    experiment_base_id = self.db.get_base_experiments_count()
-                    print(
-                        self.glitcher.colorize(
-                            f"[+] Experiment {exp_id}\t{experiment_base_id}\t({speed})\t{voltage:.2f}\t{delay:>{len(str(self.parameters['e_delay']))}}\t{length}\t{color}\t{state}",
-                            color,
-                        )
-                    )
-                    exp_id += 1
+                        exp_id += 1
 
 
 if __name__ == "__main__":
