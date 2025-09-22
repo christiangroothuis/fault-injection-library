@@ -121,7 +121,8 @@ class Main:
         }
 
         if args.programmer:
-            self.mux = Pin14Mux()
+            # self.mux = Pin14Mux()
+            disable_tx()
             self.programmer = STM8Reader(port=args.programmer)
 
         self.glitcher = BootloaderProfilingGlitcher()
@@ -186,22 +187,12 @@ class Main:
                 self.glitcher.block(timeout=1)
                 time.sleep(100e-6)  # wait for rx to go high if success
                 success = self.glitcher.read_success_flag()
-                self.mux.enable_uart_tx_alt0()
-                # print(
-                #     self.glitcher.pico_glitcher.pyb.exec_raw(
-                #         f"print(int(adc.read_u16()))\n"
-                #     )
-                # )
+                # self.mux.enable_uart_tx_alt0()
+                enable_tx()
 
                 if success:
                     if self.args.programmer:
-                        # enable_tx()
                         time.sleep(0.9)
-                        print(
-                            self.glitcher.pico_glitcher.pyb.exec_raw(
-                                f"print(int(adc.read_u16()))\n"
-                            )
-                        )
                         elapsed = time.time() - start_time
                         print(f"Enabling TX took {elapsed:.6f} seconds")
                         self.programmer.enter_bootloader()
@@ -209,7 +200,8 @@ class Main:
                         eeprom = self.programmer.read_memory(0x1000, 0x00FF)
                         print(hexlify(flash)[:16], "...")
                         print(hexlify(eeprom)[:16], "...")
-                        self.mux.disable_to_input()
+                        disable_tx()
+                        # self.mux.disable_to_input()
 
                     # send_pushover_notification(
                     #     user_key=os.getenv("PUSHOVER_USER_KEY"),
