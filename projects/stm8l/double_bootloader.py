@@ -10,6 +10,7 @@ import time
 from dotenv import load_dotenv
 from binascii import hexlify
 from findus import Database, PicoGlitcher
+import pigpio
 
 from findus.findus import BlockTimeoutError
 from projects.stm8l.utils.pushover import send_pushover_notification
@@ -77,8 +78,10 @@ class Main:
         }
 
         if args.programmer:
-            disable_tx()
-            time.sleep(0.5)
+            self.pi = pigpio.pi()
+            assert self.pi.connected
+            self.pi.set_mode(14, pigpio.INPUT)
+            self.pi.set_pull_up_down(14, pigpio.PUD_OFF)
             self.programmer = STM8Reader(port=args.programmer)
 
         self.glitcher = BootloaderProfilingGlitcher()
@@ -148,7 +151,8 @@ class Main:
 
                 if success and exp_id > 1:
                     if self.args.programmer:
-                        enable_tx()
+                        # enable_tx()
+                        self.pi.set_mode(14, pigpio.ALT0)
                         time.sleep(2)
                         print(self.glitcher.pico_glitcher.pyb.exec_raw(f"print(int(adc.read_u16()))\n"))
                         elapsed = time.time() - start_time
@@ -157,7 +161,8 @@ class Main:
                         flash = self.programmer.read_memory(0x8000, 0x2000)
                         eeprom = self.programmer.read_memory(0x1000, 0x00FF)
                         print(hexlify(flash)[:16], "...")
-                        disable_tx()
+                        self.pi.set_mode(14, pigpio.INPUT)
+                        self.pi.set_pull_up_down(14, pigpio.PUD_DOWN)
 
                     # send_pushover_notification(
                     #     user_key=os.getenv("PUSHOVER_USER_KEY"),
