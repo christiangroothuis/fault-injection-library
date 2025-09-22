@@ -146,6 +146,7 @@ class Main:
                 if success:
                     if self.args.programmer:
                         enable_uart()
+                        time.sleep(1)
                         print(self.glitcher.pico_glitcher.pyb.exec_raw(f"print(int(adc.read_u16()))\n"))
                         self.programmer.enter_bootloader()
                         flash = self.programmer.read_memory(0x8000, 0x2000)
