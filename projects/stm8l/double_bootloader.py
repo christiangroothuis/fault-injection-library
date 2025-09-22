@@ -168,14 +168,14 @@ class Main:
                         time.sleep(0.3)
                         self.programmer.read_memory(
                             start=0x1000,
-                            end=0x10FF,
+                            end=0x9FFF,
                             outfile=f"eeprom-{exp_id}.bin",
                         )
-                        self.programmer.read_memory(
-                            start=0x8000,
-                            end=0x9FFF,
-                            outfile=f"flash-{exp_id}.bin",
-                        )
+                        # self.programmer.read_memory(
+                        #     start=0x8000,
+                        #     end=0x9FFF,
+                        #     outfile=f"flash-{exp_id}.bin",
+                        # )
                         self.programmer.disable_uart()
 
                     # send_pushover_notification(
