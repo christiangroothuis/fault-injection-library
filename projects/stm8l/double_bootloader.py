@@ -166,7 +166,7 @@ class Main:
                     state = b"success"
                 else:
                     state = b"expected"
-            except BlockTimeoutError:
+            except Exception:
                 print("[-] Timeout received in block(). Continuing.")
                 self.glitcher.power_cycle_reset(0.2)
                 time.sleep(0.2)
