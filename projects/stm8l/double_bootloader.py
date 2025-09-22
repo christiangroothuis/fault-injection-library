@@ -19,12 +19,12 @@ from .utils.reader import STM8Reader
 RX_PIN = 27
 
 
-def disable_uart():
-    subprocess.run(["pinctrl", "set", "14,15", "ip", "pn"], check=True)
+def disable_tx():
+    subprocess.run(["pinctrl", "set", "14", "ip", "pn"], check=True)
 
 
-def enable_uart():
-    subprocess.run(["pinctrl", "set", "14,15", "a0"], check=True)
+def enable_tx():
+    subprocess.run(["pinctrl", "set", "14", "a0"], check=True)
 
 
 class BootloaderProfilingGlitcher(PicoGlitcher):
@@ -77,7 +77,7 @@ class Main:
         }
 
         if args.programmer:
-            # disable_uart()
+            disable_tx()
             time.sleep(0.5)
             self.programmer = STM8Reader(port=args.programmer)
 
@@ -148,7 +148,7 @@ class Main:
 
                 if success and exp_id > 1:
                     if self.args.programmer:
-                        # enable_uart()
+                        enable_tx()
                         time.sleep(0.9)
                         print(self.glitcher.pico_glitcher.pyb.exec_raw(f"print(int(adc.read_u16()))\n"))
                         elapsed = time.time() - start_time
@@ -157,7 +157,7 @@ class Main:
                         flash = self.programmer.read_memory(0x8000, 0x2000)
                         eeprom = self.programmer.read_memory(0x1000, 0x00FF)
                         print(hexlify(flash)[:16], "...")
-                        disable_uart()
+                        disable_tx()
 
                     # send_pushover_notification(
                     #     user_key=os.getenv("PUSHOVER_USER_KEY"),
