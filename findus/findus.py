@@ -24,6 +24,9 @@ import random
 from findus import pyboard
 from importlib.metadata import version
 
+class BlockTimeoutError(Exception):
+    pass
+
 class Database():
     """
     Database class managing access to the SQLite databases to store results from a glitching campaign.
@@ -940,7 +943,10 @@ class PicoGlitcher(Glitcher):
         Parameters:
             timeout: Time after the block is released.
         """
-        self.pico_glitcher.block(timeout)
+        try:
+            self.pico_glitcher.block(timeout)
+        except Exception as e:
+            raise BlockTimeoutError("block() timed out") from e
 
     def check_glitch(self) -> bool:
         """

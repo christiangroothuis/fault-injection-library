@@ -8,8 +8,9 @@ import subprocess
 import sys
 import time
 from dotenv import load_dotenv
-from findus import Database, PicoGlitcher
+from findus import Database, PicoGlitcher, STM8Programmer
 
+from findus.findus import BlockTimeoutError
 from projects.stm8l.utils.pushover import send_pushover_notification
 from .utils.psu import PS3005D
 
@@ -122,6 +123,7 @@ class Main:
         if args.programmer:
             self.programmer = UARTProgrammer(port=self.args.programmer)
             self.programmer.disable_uart()
+            self.stm_programmer = STM8Programmer(port=self.args.programmer)
 
     def run(self):
         exp_id = 0
@@ -165,17 +167,29 @@ class Main:
                 if success:
                     if self.args.programmer:
                         self.programmer.enable_uart()
-                        self.programmer.read_memory(
+                        self.stm_programmer.bootloader_enter()
+                        self.stm_programmer.read_memory(
                             start=0x1000,
                             end=0x10FF,
                             outfile=f"eeprom-{exp_id}.bin",
                         )
-                        self.programmer.read_memory(
+                        self.stm_programmer.read_memory(
                             start=0x8000,
                             end=0x9FFF,
                             outfile=f"flash-{exp_id}.bin",
                         )
                         self.programmer.disable_uart()
+                        # self.programmer.read_memory(
+                        #     start=0x1000,
+                        #     end=0x10FF,
+                        #     outfile=f"eeprom-{exp_id}.bin",
+                        # )
+                        # self.programmer.read_memory(
+                        #     start=0x8000,
+                        #     end=0x9FFF,
+                        #     outfile=f"flash-{exp_id}.bin",
+                        # )
+                        # self.programmer.disable_uart()
 
                     # send_pushover_notification(
                     #     user_key=os.getenv("PUSHOVER_USER_KEY"),
@@ -190,7 +204,7 @@ class Main:
                     state = b"success"
                 else:
                     state = b"expected"
-            except:
+            except BlockTimeoutError:
                 print("[-] Timeout received in block(). Continuing.")
                 self.glitcher.power_cycle_reset(0.2)
                 time.sleep(0.2)
