@@ -48,13 +48,13 @@ class Main:
     def __init__(self, args):
         self.args = args
         self.parameters = {
-            "s_length": 4,
+            "s_length": 24,
             "e_length": 100,
             "length_step": 4,
             "s_delay": 1850,
             "e_delay": 1920,
             "delay_step": 16,
-            "s_voltage": 0.60,
+            "s_voltage": 0.90,
             "e_voltage": 2.20,
             "voltage_step": 0.01,
             "n_glitches": 500,
