@@ -34,8 +34,8 @@ class UARTProgrammer:
         cmd = [
             self.proc,
             "-b", str(self.baud),
-            "-B",
-            "-v", "0",
+            # "-B",
+            # "-v", "0",
             "-R", "0",
             "-p",
             self.port,
@@ -46,6 +46,9 @@ class UARTProgrammer:
         subprocess.run(cmd, check=True)
 
         return pathlib.Path(outfile).resolve()
+    
+    def __del__(self):
+        self.disable_uart()
 
 
 class BootloaderProfilingGlitcher(PicoGlitcher):
@@ -162,16 +165,15 @@ class Main:
                 if success:
                     if self.args.programmer:
                         self.programmer.enable_uart()
-                        time.sleep(0.2)
-                        self.programmer.read_memory(
-                            start=0x8000,
-                            end=0x9FFF,
-                            outfile=f"flash-{exp_id}.bin",
-                        )
                         self.programmer.read_memory(
                             start=0x1000,
                             end=0x10FF,
                             outfile=f"eeprom-{exp_id}.bin",
+                        )
+                        self.programmer.read_memory(
+                            start=0x8000,
+                            end=0x9FFF,
+                            outfile=f"flash-{exp_id}.bin",
                         )
                         self.programmer.disable_uart()
 
