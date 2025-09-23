@@ -115,14 +115,14 @@ class Main:
                 delay = round(delay / 4) * 4  # ensure delay is multiple of 4
 
                 self.glitcher.arm_double_multiplexing(
-                    delay, length, "VI1", delay + length + 300, length, "3.3"
+                    delay, length, "VI1", delay + length + 5, length, "3.3"
                 )
                 self.glitcher.reset(200e-6)  # reset for 50us
                 success = False
 
                 try:
                     self.glitcher.block(timeout=0.1)
-                    time.sleep(60e-6)
+                    time.sleep(400e-6)
                     success = self.glitcher.read_success_flag()
                     reset = self.glitcher.read_reset_flag()
 
