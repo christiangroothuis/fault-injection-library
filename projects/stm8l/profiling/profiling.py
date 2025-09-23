@@ -132,7 +132,7 @@ class Main:
                         send_pushover_notification(
                             user_key=os.getenv("PUSHOVER_USER_KEY"),
                             app_token=os.getenv("PUSHOVER_APP_TOKEN"),
-                            message=f"Successful glitch! with delays={delay} ns, length={length} ns, voltage={self.parameters['voltage']:.2f} V",
+                            message=f"Successful glitch! with delays={delay} ns, length={length} ns, voltage={voltage:.2f} V",
                             title="Successful glitch",
                         )
                     elif reset:
