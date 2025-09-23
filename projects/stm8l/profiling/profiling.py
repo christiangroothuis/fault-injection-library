@@ -51,12 +51,12 @@ class Main:
         self.args = args
         self.parameters = {
             "s_length": 4,
-            "e_length": 300,
+            "e_length": 130,
             "length_step": 4,
-            "s_delay": 1820,
-            "e_delay": 1920,
+            "s_delay": 1450,
+            "e_delay": 2050,
             "delay_step": 16,
-            "s_voltage": 0.21,
+            "s_voltage": 0.40,
             "e_voltage": 2.20,
             "voltage_step": 0.01,
             "n_glitches": 100_000,
