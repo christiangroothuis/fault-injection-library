@@ -56,7 +56,7 @@ class Main:
             "s_delay": 1820,
             "e_delay": 1920,
             "delay_step": 16,
-            "s_voltage": 0.20,
+            "s_voltage": 0.21,
             "e_voltage": 2.20,
             "voltage_step": 0.01,
             "n_glitches": 100_000,
