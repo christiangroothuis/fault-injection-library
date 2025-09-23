@@ -1174,17 +1174,17 @@ class PicoGlitcher():
         )
 
         # convert nanoseconds to PIO clock cycles
-        cycles_per_ns = 1_000_000_000 // self.frequency
+        ns_per_cycle = 1_000_000_000 // self.frequency
 
-        pulse1_length = int(length1) // cycles_per_ns
-        pulse1_delay = int(delay1) // cycles_per_ns
-        pulse2_delay = int(delay2) // cycles_per_ns
-        pulse2_length = int(length2) // cycles_per_ns
+        pulse1_length = int(length1) // ns_per_cycle
+        pulse1_delay = int(delay1) // ns_per_cycle
+        pulse2_delay = int(delay2) // ns_per_cycle
+        pulse2_length = int(length2) // ns_per_cycle
 
         if pulse1_length > 2**14 or pulse2_length > 2**14:
             raise Exception(f"Pulse length exceeds maximum value.")
         
-        if delay1 > 2**16 or delay2 > 2**16:
+        if pulse1_delay > 2**16 or pulse2_delay > 2**16:
             raise Exception(f"Pulse delay exceeds maximum value.")
 
         v1 = self.voltage_map[v1]
