@@ -99,11 +99,11 @@ class Main:
         random.shuffle(voltages)
 
         for voltage in voltages:
-            for _ in range(self.parameters["n_glitches"]):
-                print(f"Setting PSU voltage to {voltage:.2f} V")
-                self.psu.set_voltage(voltage)
-                time.sleep(0.1)
+            print(f"Setting PSU voltage to {voltage:.2f} V")
+            self.psu.set_voltage(voltage)
+            time.sleep(0.1)
 
+            for _ in range(self.parameters["n_glitches"]):
                 delay = random.randint(
                     self.parameters["s_delay"], self.parameters["e_delay"]
                 )
