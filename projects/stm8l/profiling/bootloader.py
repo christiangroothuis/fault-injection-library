@@ -44,8 +44,8 @@ class Main:
         self.parameters = {
             "s_length": 24,
             "e_length": 24,
-            "s_delay": 25000,
-            "e_delay": 35000,
+            "s_delay": 29480,
+            "e_delay": 29500,
             "voltage": 1.10,
         }
 
@@ -79,19 +79,26 @@ class Main:
         time.sleep(0.1)
 
         while True:
-            delay = int(random.randint(self.parameters["s_delay"], self.parameters["e_delay"]))
-            delay = round(delay / 4) * 4 # ensure delay is multiple of 4
-            length = int(random.randint(self.parameters["s_length"], self.parameters["e_length"]))
+            delay = int(
+                random.randint(self.parameters["s_delay"], self.parameters["e_delay"])
+            )
+            delay = round(delay / 4) * 4  # ensure delay is multiple of 4
+            length = int(
+                random.randint(self.parameters["s_length"], self.parameters["e_length"])
+            )
             length = round(length / 4) * 4
-
+            
+            # self.glitcher.arm_double_multiplexing(delay, length, "VI1", delay + length + 300, length, "3.3")
+            
             mul_config = {"t1": length, "v1": "VI1"}
             self.glitcher.arm_multiplexing(delay, mul_config)
+
             self.glitcher.reset(100e-6)  # reset for 100us
             success = False
 
             try:
                 self.glitcher.block(timeout=1)
-                time.sleep(100e-6) # wait for rx to go high if success
+                time.sleep(100e-6)  # wait for rx to go high if success
                 success = self.glitcher.read_success_flag()
 
                 if success:
@@ -105,7 +112,10 @@ class Main:
                 state = b"timeout"
 
             color = self.glitcher.classify(state)
-            self.db.insert(exp_id, self.parameters["voltage"] * 100, delay, length, color, state)
+            if success:
+                self.db.insert(
+                    exp_id, self.parameters["voltage"] * 100, delay, length, color, state
+                )
             speed = self.glitcher.get_speed(self.start_time, exp_id)
             experiment_base_id = self.db.get_base_experiments_count()
             print(
