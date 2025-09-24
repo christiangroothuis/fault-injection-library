@@ -315,46 +315,34 @@ def multiplex_vin2(MUX_PIO_INIT=0b10):
 
 @asm_pio(set_init = (Globals.MUX1_PIO_INIT, Globals.MUX0_PIO_INIT), out_init = (Globals.MUX1_PIO_INIT, Globals.MUX0_PIO_INIT), sideset_init=PIO.OUT_LOW, out_shiftdir=PIO.SHIFT_RIGHT)
 def multiplex_double(MUX_PIO_INIT=Globals.MUX_PIO_INIT):
-    # block until first delay received
-    pull(block)
-    out(x, 16)               # X = delay1
-    out(isr, 16)             # ISR = delay2
-
-    # block until first config received (t1 & v1)
-    pull(block)               # OSR = cfg
-
-    # wait for trigger condition, enable glitch_en
+    pull(block) # delay1
+    out(x, 16)
+    out(isr, 16)
+    
+    pull(block) #config
+    
     wait(1, irq, 7).side(1)
 
-    """ 
-    state right now:
-    X: delay1
-    OSR: v2 << 30 | t2 << 16 | v1 << 14 | t1
-    ISR: delay2
-    """
-    # first multiplex pulse
     label("delay1_loop")
-    jmp(x_dec, "delay1_loop") # wait delay1 cycles
+    jmp(x_dec, "delay1_loop") 
 
-    out(y, 14)               
-    out(pins, 2)              # switch MUX to v1
+    out(y, 14)
+    out(pins, 2)
     label("length1_loop")
-    jmp(y_dec, "length1_loop") # hold v1 for length1
+    jmp(y_dec, "length1_loop") 
 
-    set(pins, MUX_PIO_INIT)  # back to idle
-
-    # second multiplex pulse
-    mov(y, isr)            # Y = delay2
+    set(pins, MUX_PIO_INIT)  
+    
+    mov(y, isr) # delay2
     label("delay2_loop")
-    jmp(y_dec, "delay2_loop") # wait delay2 cycles
-    out(y, 14)                # Y = cfg2 >> 14 (length2)
-    out(pins, 2)              # switch MUX to v2
+    jmp(y_dec, "delay2_loop") 
+    out(y, 14)
+    out(pins, 2)
     label("length2_loop")
-    jmp(y_dec, "length2_loop") # hold v2 for length2
+    jmp(y_dec, "length2_loop") 
 
-    set(pins, MUX_PIO_INIT).side(0b0)  # idle + disable glitch_en
-
-    # signal done
+    set(pins, MUX_PIO_INIT).side(0b0)  
+    
     irq(clear, 7)
     push(block)
 
