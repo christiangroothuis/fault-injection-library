@@ -313,7 +313,7 @@ def multiplex_vin2(MUX_PIO_INIT=0b10):
     irq(clear, 7)
     push(block)
 
-@asm_pio(set_init = (Globals.MUX1_PIO_INIT, Globals.MUX0_PIO_INIT), out_init = (Globals.MUX1_PIO_INIT, Globals.MUX0_PIO_INIT), sideset_init=PIO.OUT_LOW, out_shiftdir=PIO.SHIFT_RIGHT)
+@asm_pio(set_init = (Globals.MUX1_PIO_INIT, Globals.MUX0_PIO_INIT), out_init = (Globals.MUX1_PIO_INIT, Globals.MUX0_PIO_INIT), sideset_init=(PIO.OUT_LOW), out_shiftdir=PIO.SHIFT_RIGHT)
 def multiplex_double(MUX_PIO_INIT=Globals.MUX_PIO_INIT):
     pull(block) # delay1
     out(x, 16)
@@ -321,7 +321,7 @@ def multiplex_double(MUX_PIO_INIT=Globals.MUX_PIO_INIT):
     
     pull(block) #config
     
-    wait(1, irq, 7).side(1)
+    wait(1, irq, 7).side(0b1)
 
     label("delay1_loop")
     jmp(x_dec, "delay1_loop") 
@@ -333,9 +333,9 @@ def multiplex_double(MUX_PIO_INIT=Globals.MUX_PIO_INIT):
 
     set(pins, MUX_PIO_INIT)  
     
-    mov(y, isr) # delay2
+    mov(x, isr) # delay2
     label("delay2_loop")
-    jmp(y_dec, "delay2_loop") 
+    jmp(x_dec, "delay2_loop") 
     out(y, 14)
     out(pins, 2)
     label("length2_loop")
