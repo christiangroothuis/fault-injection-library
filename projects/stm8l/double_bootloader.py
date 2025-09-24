@@ -30,8 +30,6 @@ FSEL_ALT0 = 0b100  # UART0 TX on GPIO14
 
 
 class Pin14Mux:
-    __slots__ = ("fd", "mm", "mv", "_pack", "_unpack")
-
     def __init__(self):
         self.fd = os.open("/dev/gpiomem", os.O_RDWR | os.O_SYNC)
         self.mm = mmap.mmap(
@@ -58,8 +56,7 @@ class Pin14Mux:
 
     def disable_to_input(self):
         v = self._rw_gpfsel1()
-        v &= ~(FSEL_MASK_3BITS << GPIO14_SHIFT)  # set to INPUT (000)
-        # (optional) leave as pure input; add pulls separately if you want.
+        v &= ~(FSEL_MASK_3BITS << GPIO14_SHIFT)
         self.mv[GPFSEL1_OFFSET : GPFSEL1_OFFSET + 4] = self._pack(v)
 
 
@@ -175,8 +172,6 @@ class Main:
                 "v1": "VI1",
                 "t2": delay2,
                 "v2": "3.3",
-                "t3": length,
-                "v3": "VI1",
             }
             self.glitcher.arm_multiplexing(delay1, mul_config)
             start_time = time.time()
@@ -191,7 +186,7 @@ class Main:
 
                 if success:
                     if self.args.programmer:
-                        # enable_tx()
+                        enable_tx()
                         time.sleep(0.9)
                         # print(
                         #     self.glitcher.pico_glitcher.pyb.exec_raw(
@@ -221,8 +216,7 @@ class Main:
                     state = b"success"
                 else:
                     state = b"expected"
-            except Exception as e:
-                print(e)
+            except BlockTimeoutError:
                 print("[-] Timeout received in block(). Continuing.")
                 self.glitcher.power_cycle_reset(0.2)
                 time.sleep(0.2)
