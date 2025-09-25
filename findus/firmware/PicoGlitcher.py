@@ -329,52 +329,17 @@ def multiplex_double(MUX_PIO_INIT=Globals.MUX_PIO_INIT):
     out(y, 14)
     out(pins, 2)
     label("length1_loop")
-    jmp(y_dec, "length1_loop")
+    jmp(y_dec, "length1_loop") 
 
-    pull(block) # weird stuff
-
-
-
-    set(x, 4)
-    label("weird_loop")
-
-    out(y, 2)
-    out(pins, 2)
-
-    label("pulse1")
-    jmp(y_dec, "pulse1")
-
-    jmp(x_dec, "weird_loop")
-
-
-
-    set(pins, MUX_PIO_INIT) 
+    set(pins, MUX_PIO_INIT)  
     
     mov(x, isr) # delay2
     label("delay2_loop")
     jmp(x_dec, "delay2_loop") 
-
     out(y, 14)
     out(pins, 2)
     label("length2_loop")
-    jmp(y_dec, "length2_loop")
-
-
-
-
-    set(x, 4)
-    label("weird_loop2")
-
-    out(y, 2)
-    out(pins, 2)
-
-    label("pulse2")
-    jmp(y_dec, "pulse2")
-
-    jmp(x_dec, "weird_loop2")
-
-
-
+    jmp(y_dec, "length2_loop") 
 
     set(pins, MUX_PIO_INIT).side(0b0)  
     
@@ -1223,9 +1188,6 @@ class PicoGlitcher():
         # push parameters into SM0 FIFO
         self.sm0.put(delays)
         self.sm0.put(config)
-
-        self.sm0.put(0b00 << 14 | 0 << 12 | 0b10 << 10 | 3 << 8 | 0b00 << 6 | 2 << 4 | 0b10 << 2 | 0)
-        self.sm0.put(0b00 << 14 | 0 << 12 | 0b10 << 10 | 3 << 8 | 0b00 << 6 | 2 << 4 | 0b10 << 2 | 0)
 
         # start trigger + dead-time machines and enable SM0
         self.__arm_common()

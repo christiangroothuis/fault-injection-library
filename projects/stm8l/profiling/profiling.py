@@ -51,15 +51,15 @@ class Main:
         self.args = args
         self.parameters = {
             "s_length": 4,
-            "e_length": 130,
+            "e_length": 200,
             "length_step": 4,
-            "s_delay": 1450,
-            "e_delay": 2050,
+            "s_delay": 1000,
+            "e_delay": 2000,
             "delay_step": 16,
-            "s_voltage": 0.40,
+            "s_voltage": 0.20,
             "e_voltage": 2.20,
             "voltage_step": 0.01,
-            "n_glitches": 100_000,
+            "n_glitches": 10_000,
         }
 
         self.glitcher = ProfilingGlitcher()
@@ -91,14 +91,8 @@ class Main:
         self.psu.turn_on()
         time.sleep(0.1)
 
-        voltages = list(np.arange(
-            self.parameters["s_voltage"],
-            self.parameters["e_voltage"],
-            self.parameters["voltage_step"],
-        ))
-        random.shuffle(voltages)
-
-        for voltage in voltages:
+        while True:
+            voltage = round(random.uniform(self.parameters["s_voltage"], self.parameters["e_voltage"]), 2)
             print(f"Setting PSU voltage to {voltage:.2f} V")
             self.psu.set_voltage(voltage)
             time.sleep(0.1)
@@ -110,13 +104,11 @@ class Main:
                 length = random.randint(
                     self.parameters["s_length"], self.parameters["e_length"]
                 )
-
                 length = round(length / 4) * 4  # ensure length is multiple of 4
                 delay = round(delay / 4) * 4  # ensure delay is multiple of 4
 
-                self.glitcher.arm_double_multiplexing(
-                    delay, length, "VI1", delay + length + 5, length, "3.3"
-                )
+                self.glitcher.arm_double_multiplexing(delay, length, "VI1", delay + length + 100, length, "3.3")
+                # self.glitcher.arm_multiplexing(delay, {"t1": length, "v1": "VI1"})
                 self.glitcher.reset(200e-6)  # reset for 50us
                 success = False
 
