@@ -122,7 +122,7 @@ class Database():
         column_names = [description[0] for description in self.cur.description]
         return column_names[1:-2]
 
-    def insert(self, *dataset):
+    def insert(self, *dataset, commit:bool = True):
         """
         Method to insert datapoints into the SQLite database.
 
@@ -134,26 +134,29 @@ class Database():
                 - color: Color with which the parameter point (delay, length) is to be displayed in the graph.
                 - response: Byte string of target response. 
         """
+        if self.nostore:
+            return
         if len(dataset) < 4:
             raise Exception("Database.insert: Too less arguments given.")
+
         experiment_id = dataset[0]
-        if not self.nostore:
-            if (experiment_id + self.base_row_count) == 0:
-                s_argv = ' '.join(self.argv[1:])
-                self.cur.execute("INSERT INTO metadata (stime_seconds,argv) VALUES (?,?)", [int(time.time()), s_argv])
-            parameters = dataset[1:-2]
-            color = dataset[-2]
-            response = dataset[-1]
-            #print(f"{experiment_id}, {parameters}, {color}, {response}")
-            columns = ",".join(f"{col}" for col in self.column_names)
-            values = [experiment_id + self.base_row_count, color, response]
-            # insert the parameters after position 1
-            values[1:1] = parameters
-            #print(values)
-            qmarks = ",".join("?" for _ in range(len(values)))
-            #print(qmarks)
-            #print(f"INSERT INTO experiments (id,{columns},color,response) VALUES ({qmarks})")
-            self.cur.execute(f"INSERT INTO experiments (id,{columns},color,response) VALUES ({qmarks})", values)
+        if (experiment_id + self.base_row_count) == 0:
+            s_argv = ' '.join(self.argv[1:])
+            self.cur.execute("INSERT INTO metadata (stime_seconds,argv) VALUES (?,?)", [int(time.time()), s_argv])
+        parameters = dataset[1:-2]
+        color = dataset[-2]
+        response = dataset[-1]
+        #print(f"{experiment_id}, {parameters}, {color}, {response}")
+        columns = ",".join(f"{col}" for col in self.column_names)
+        values = [experiment_id + self.base_row_count, color, response]
+        # insert the parameters after position 1
+        values[1:1] = parameters
+        #print(values)
+        qmarks = ",".join("?" for _ in range(len(values)))
+        #print(qmarks)
+        #print(f"INSERT INTO experiments (id,{columns},color,response) VALUES ({qmarks})")
+        self.cur.execute(f"INSERT INTO experiments (id,{columns},color,response) VALUES ({qmarks})", values)
+        if commit:
             self.con.commit()
 
     def get_parameters_of_experiment(self, experiment_id:int) -> list:
