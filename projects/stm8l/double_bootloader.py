@@ -37,7 +37,6 @@ class BootloaderProfilingGlitcher(PicoGlitcher):
     def read_success_flag(self) -> bool:
         out = self.pico_glitcher.pyb.exec_raw(f"print(int(adc.read_u16()))\n")
 
-        print(out)
         return int(out[0].strip()) > 5000
 
     def classify(self, state: bytes) -> str:
@@ -131,7 +130,6 @@ class Main:
                 "v2": "3.3",
             }
             self.glitcher.arm_multiplexing(delay1, mul_config)
-            start_time = time.time()
             self.glitcher.reset(50e-6)  # reset for 50us
             success = False
 
@@ -143,8 +141,6 @@ class Main:
                 if success:
                     if self.args.programmer:
                         enable_tx()
-                        elapsed = time.time() - start_time
-                        print(f"Enabling TX took {elapsed:.6f} seconds")
                         self.programmer.enter_bootloader()
                         flash = self.programmer.read_memory(0x8000, 0x2000)
                         eeprom = self.programmer.read_memory(0x1000, 0x00FF)
