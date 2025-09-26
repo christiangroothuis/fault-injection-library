@@ -7,6 +7,7 @@ import random
 import subprocess
 import sys
 import time
+import secrets
 from dotenv import load_dotenv
 from binascii import hexlify
 from findus import Database, PicoGlitcher
@@ -145,9 +146,16 @@ class Main:
                         flash = self.programmer.read_memory(0x8000, 0x2000)
                         eeprom = self.programmer.read_memory(0x1000, 0x00FF)
                         self.programmer.close()
-                        print(hexlify(flash)[:16], "...")
-                        print(hexlify(eeprom)[:16], "...")
                         disable_tx()
+
+                        rand_str = secrets.token_hex(4)
+                        flash_filename = f"flash-{rand_str}.bin"
+                        eeprom_filename = f"eeprom-{rand_str}.bin"
+                        pathlib.Path(flash_filename).write_bytes(flash)
+                        pathlib.Path(eeprom_filename).write_bytes(eeprom)
+                        print(
+                            f"[+] Written {flash_filename} and {eeprom_filename}"
+                        )
 
                     # send_pushover_notification(
                     #     user_key=os.getenv("PUSHOVER_USER_KEY"),
