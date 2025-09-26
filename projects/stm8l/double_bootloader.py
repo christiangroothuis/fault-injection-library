@@ -10,54 +10,12 @@ import time
 from dotenv import load_dotenv
 from binascii import hexlify
 from findus import Database, PicoGlitcher
-import pigpio
 
-from findus.findus import BlockTimeoutError
 from projects.stm8l.utils.pushover import send_pushover_notification
 from .utils.psu import PS3005D
 from .utils.reader import STM8Reader
 
 RX_PIN = 27
-
-import os, mmap, struct
-
-# GPFSEL1 controls GPIO10..19. GPIO14 lives here.
-GPFSEL1_OFFSET = 0x04
-GPIO14_SHIFT = 3 * (14 - 10)  # 12
-FSEL_MASK_3BITS = 0b111
-FSEL_INPUT = 0b000
-FSEL_ALT0 = 0b100  # UART0 TX on GPIO14
-
-
-class Pin14Mux:
-    def __init__(self):
-        self.fd = os.open("/dev/gpiomem", os.O_RDWR | os.O_SYNC)
-        self.mm = mmap.mmap(
-            self.fd, 0x1000, mmap.MAP_SHARED, mmap.PROT_READ | mmap.PROT_WRITE
-        )
-        self.mv = memoryview(self.mm)
-        st = struct.Struct("<I")
-        self._pack, self._unpack = st.pack, st.unpack_from
-
-    def close(self):
-        self.mv.release()
-        self.mm.close()
-        os.close(self.fd)
-
-    def _rw_gpfsel1(self):
-        val = self._unpack(self.mv, GPFSEL1_OFFSET)[0]
-        return val
-
-    def enable_uart_tx_alt0(self):
-        v = self._rw_gpfsel1()
-        v &= ~(FSEL_MASK_3BITS << GPIO14_SHIFT)
-        v |= FSEL_ALT0 << GPIO14_SHIFT
-        self.mv[GPFSEL1_OFFSET : GPFSEL1_OFFSET + 4] = self._pack(v)
-
-    def disable_to_input(self):
-        v = self._rw_gpfsel1()
-        v &= ~(FSEL_MASK_3BITS << GPIO14_SHIFT)
-        self.mv[GPFSEL1_OFFSET : GPFSEL1_OFFSET + 4] = self._pack(v)
 
 
 def disable_tx():
@@ -119,7 +77,6 @@ class Main:
         }
 
         if args.programmer:
-            # self.mux = Pin14Mux()
             self.programmer = STM8Reader(port=args.programmer)
 
         self.glitcher = BootloaderProfilingGlitcher()
@@ -182,17 +139,10 @@ class Main:
                 self.glitcher.block(timeout=1)
                 time.sleep(100e-6)  # wait for rx to go high if success
                 success = self.glitcher.read_success_flag()
-                # self.mux.enable_uart_tx_alt0()
 
                 if success:
                     if self.args.programmer:
                         enable_tx()
-                        time.sleep(0.9)
-                        # print(
-                        #     self.glitcher.pico_glitcher.pyb.exec_raw(
-                        #         f"print(int(adc.read_u16()))\n"
-                        #     )
-                        # )
                         elapsed = time.time() - start_time
                         print(f"Enabling TX took {elapsed:.6f} seconds")
                         self.programmer.enter_bootloader()
@@ -201,7 +151,7 @@ class Main:
                         self.programmer.close()
                         print(hexlify(flash)[:16], "...")
                         print(hexlify(eeprom)[:16], "...")
-                        # self.mux.disable_to_input()
+                        disable_tx()
 
                     # send_pushover_notification(
                     #     user_key=os.getenv("PUSHOVER_USER_KEY"),
@@ -216,7 +166,7 @@ class Main:
                     state = b"success"
                 else:
                     state = b"expected"
-            except BlockTimeoutError:
+            except TimeoutError:
                 print("[-] Timeout received in block(). Continuing.")
                 self.glitcher.power_cycle_reset(0.2)
                 time.sleep(0.2)

@@ -1,14 +1,5 @@
-import subprocess
 import serial
 import time
-
-
-def disable_tx():
-    subprocess.run(["pinctrl", "set", "14", "ip", "pn"], check=True)
-
-
-def enable_tx():
-    subprocess.run(["pinctrl", "set", "14", "a0"], check=True)
 
 
 class STM8Reader:
@@ -23,9 +14,9 @@ class STM8Reader:
         self.ser = None
 
     def enter_bootloader(self, tries=2):
-        self._open_8e1()
-        enable_tx()
-        time.sleep(0.003)
+        if not self.ser or not self.ser.is_open:
+            self.open_8e1()
+
         self.ser.reset_input_buffer()
         for _ in range(tries):
             self._write(bytes([self.SYNCH]))
@@ -39,7 +30,7 @@ class STM8Reader:
 
     def read_memory(self, start_addr, length):
         if not self.ser or not self.ser.is_open:
-            self._open_8e1()
+            self.open_8e1()
 
         data = bytearray()
         offset = 0
@@ -58,9 +49,8 @@ class STM8Reader:
                 self.ser.close()
             finally:
                 self.ser = None
-        disable_tx()
 
-    def _open_8e1(self):
+    def open_8e1(self):
         if self.ser:
             self.close()
         self.ser = serial.Serial(
