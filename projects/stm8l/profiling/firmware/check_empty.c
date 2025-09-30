@@ -3,17 +3,18 @@
 
 #define TRIG_PIN (1 << 1) // PB1
 #define SUCCESS_PIN (1 << 6) // PB6
-#define RESET_PIN (1 << 5) // PB5
+#define BOR_RESET_PIN (1 << 5) // PB5
+#define PORF_RESET_PIN (1 << 4) // PB4
 
-#define RST_SR_BORF (1 << 5)
-#define RST_SR_PORF (1 << 0)  // Power-On Reset flag
+#define RST_SR_BORF (1 << 5) // Brown-Out Reset flag
+#define RST_SR_PORF (1 << 0) // Power-On Reset flag
 
 void main(void)
 {
     // set output
-	PB_DDR |= TRIG_PIN | SUCCESS_PIN | RESET_PIN; // set as output
-	PB_CR1 |= TRIG_PIN | SUCCESS_PIN | RESET_PIN; // push-pull
-	PB_CR2 |= TRIG_PIN | SUCCESS_PIN | RESET_PIN; // fast
+	PB_DDR |= TRIG_PIN | SUCCESS_PIN | BOR_RESET_PIN | PORF_RESET_PIN; // set as output
+	PB_CR1 |= TRIG_PIN | SUCCESS_PIN | BOR_RESET_PIN | PORF_RESET_PIN; // push-pull
+	PB_CR2 |= TRIG_PIN | SUCCESS_PIN | BOR_RESET_PIN | PORF_RESET_PIN; // fast
 
     // Create trigger on PB1
     PB_ODR |= TRIG_PIN;
@@ -52,11 +53,13 @@ __endasm;
     {
         uint8_t rst = RST_SR;
 
-		if ((rst & RST_SR_BORF)) {
-			PB_ODR |= RESET_PIN;
-			RST_SR = 0xFF; // Clear all reset flags
+		if (rst & RST_SR_BORF) {
+			PB_ODR |= BOR_RESET_PIN;
 		}
-    }
+		if (rst & RST_SR_PORF) {
+			PB_ODR |= PORF_RESET_PIN;
+		}
+	}
 
     for (;;)
 		;
