@@ -13,7 +13,7 @@ LOCAL = "glitcher.py"  # local file to upload
 
 
 class PicoController:
-    def __init__(self, port=None):
+    def __init__(self, port):
         self.port = port
         self.pb = None
         self.ser = None
@@ -81,7 +81,7 @@ if __name__ == "__main__":
     p.add_argument(
         "--port",
         "-p",
-        default=None,
+        required=True,
         help="serial port of the Pico (default: first one found)",
     )
 
