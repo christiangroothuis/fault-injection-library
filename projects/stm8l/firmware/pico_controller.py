@@ -97,4 +97,7 @@ if __name__ == "__main__":
     ser = glitcher.open_data_channel()
     print("[data] ready for fast byte I/O (send_frame/recv_frame)")
     # --- quick demo (remove if not needed) ---
-    glitcher.send_frame(1, b"\x01"); print("→", glitcher.recv_frame())
+    glitcher.send_frame(1, b"\x01")
+    # keep reading all the bytes we get byte for byte
+    for _ in range(1000):
+        print(glitcher.ser.read(1))

@@ -1,9 +1,13 @@
 # Runs on the Pico (MicroPython)
-import sys, ustruct
+import sys, ustruct, time
 
 class Glitcher():
     def main(self):
-        while True:
+        for _ in range(1000):
+            time.sleep(0.1)
+            sys.stdout.write(b"OK")
+            sys.stdout.flush()
+            continue
             hdr = sys.stdin.read(3)
             if not hdr or len(hdr) < 3:
                 continue
