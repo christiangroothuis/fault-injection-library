@@ -99,5 +99,14 @@ if __name__ == "__main__":
     # --- quick demo (remove if not needed) ---
     glitcher.send_frame(1, b"\x01")
     # keep reading all the bytes we get byte for byte
-    for _ in range(1000):
+    for _ in range(10):
+        time.sleep(0.1)
+        print(glitcher.ser.read(1))
+
+    glitcher.ser.dtr = True
+    time.sleep(0.1)
+    glitcher.ser.dtr = False
+
+    for _ in range(10):
+        time.sleep(0.1)
         print(glitcher.ser.read(1))
