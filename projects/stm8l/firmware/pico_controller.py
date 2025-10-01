@@ -9,7 +9,7 @@ import argparse
 MODULE = "glitcher"  # fixed module name on device
 REMOTE = "glitcher.py"  # fixed remote path on device
 CLASS = "Glitcher"  # fixed class with a main(self) method
-LOCAL = "glitcher.py"  # local file to upload
+LOCAL = "projects/stm8l/firmware/glitcher.py"  # local path to upload
 
 
 class PicoController:
