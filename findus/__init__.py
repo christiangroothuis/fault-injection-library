@@ -12,7 +12,8 @@ from .DebugInterface import DebugInterface
 from .GeneticAlgorithm import OptimizationController
 from .GlitchState import GlitchState
 from .InteractivePchipEditor import InteractivePchipEditor
+from .pyboard import Pyboard, PyboardError
 from .STM32Bootloader import STM32Bootloader
 from .STM8Programmer import STM8Programmer
 
-__all__ = ["Database", "Serial", "MicroPythonScript", "PicoGlitcherInterface", "Glitcher", "PicoGlitcher", "Helper", "ErrorHandling", "AnalogPlot", "DebugInterface", "OptimizationController", "GlitchState", "InteractivePchipEditor", "STM32Bootloader", "STM8Programmer"]
+__all__ = ["Database", "Serial", "MicroPythonScript", "PicoGlitcherInterface", "Glitcher", "PicoGlitcher", "Helper", "ErrorHandling", "AnalogPlot", "DebugInterface", "OptimizationController", "GlitchState", "InteractivePchipEditor", "STM32Bootloader", "STM8Programmer", "Pyboard", "PyboardError"]
