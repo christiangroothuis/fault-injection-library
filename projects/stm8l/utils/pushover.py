@@ -1,10 +1,11 @@
 import requests
+import os
 
-def send_pushover_notification(user_key, app_token, message, title=None):
+def send_pushover_notification(message, title=None):
     url = "https://api.pushover.net/1/messages.json"
     payload = {
-        "token": app_token,
-        "user": user_key,
+        "token": os.getenv("PUSHOVER_APP_TOKEN"),
+        "user": os.getenv("PUSHOVER_USER_KEY"),
         "message": message,
     }
     if title:
