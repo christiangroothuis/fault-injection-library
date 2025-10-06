@@ -59,7 +59,6 @@ class GlitcherClient:
     def __del__(self):
         self.close()
 
-    # -------- low-level ----------
     def _read_exact(self, n: int) -> bytes:
         assert self.ser and self.ser.is_open
         out = bytearray()
@@ -143,6 +142,7 @@ class GlitcherClient:
             "success": (m & 0x01) != 0,
             "bor": (m & 0x02) != 0,
             "por": (m & 0x04) != 0,
+            "trigger": (m & 0x08) != 0,
         }
 
     def adc27(self) -> tuple[int, int]:
