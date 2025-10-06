@@ -16,6 +16,8 @@ void main(void)
 	PB_CR1 |= TRIG_PIN | SUCCESS_PIN | BOR_RESET_PIN | PORF_RESET_PIN; // push-pull
 	PB_CR2 |= TRIG_PIN | SUCCESS_PIN | BOR_RESET_PIN | PORF_RESET_PIN; // fast
 
+	// first set all pins low
+	PB_ODR = 0;
     // Create trigger on PB1
     PB_ODR |= TRIG_PIN;
 
@@ -59,6 +61,8 @@ __endasm;
 		if (rst & RST_SR_PORF) {
 			PB_ODR |= PORF_RESET_PIN;
 		}
+
+		RST_SR = 0xff; // clear all reset flags
 	}
 
     for (;;)
