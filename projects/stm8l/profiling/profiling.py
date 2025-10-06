@@ -38,12 +38,12 @@ class Main:
             "s_length": args.length[0],
             "e_length": args.length[1],
             "length_step": 4,
-            "s_delay": 1876,
-            "e_delay": 1892,
+            "s_delay": 1872,
+            "e_delay": 1912,
             "s_voltage": args.voltage[0],
             "e_voltage": args.voltage[1],
             "voltage_step": 0.01,
-            "n_glitches": 500,
+            "n_glitches": 600,
         }
 
         """
@@ -63,7 +63,7 @@ class Main:
         # self.glitcher.rising_edge_trigger()
         # self.glitcher.set_multiplexing()
 
-        self.glitcher.power_cycle_reset(0.01)
+        self.glitcher.power_cycle_reset(1000)
 
         self.db = Database(
             sys.argv + [f"{k}={v}" for k, v in self.parameters.items()],
@@ -92,30 +92,46 @@ class Main:
             print(f"Setting PSU voltage to {voltage:.2f} V")
             self.psu.set_voltage(voltage)
             time.sleep(0.1)
-
+            resets = 0
+            
             for length in range(
                 self.parameters["s_length"],
                 self.parameters["e_length"] + 1,
                 self.parameters["length_step"],
             ):
+
                 for _ in range(self.parameters["n_glitches"]):
+                    if resets >= 1000:
+                        print("Too many resets, power cycling the target.")
+                        self.glitcher.power_cycle_reset(50_000)
+                        break
+
                     delay = random.randint(
                         self.parameters["s_delay"], self.parameters["e_delay"]
                     )
                     delay = round(delay / 4) * 4  # ensure delay is multiple of 4
 
                     self.glitcher.arm_double_multiplexing(
-                        delay, 24, "VI1", delay + length + 100, length, "3.3"
+                        delay, length, "VI1", delay + length + 100, length, "3.3"
                     )
                     # self.glitcher.arm_multiplexing(delay, {"t1": length, "v1": "VI1"})
-                    self.glitcher.reset(50)  # reset for 50us
+                    self.glitcher.reset(50)  # reset for 200us
+                    # time.sleep(0.005)
                     # self.glitcher.reset(200e-6)  # reset for 50us
 
                     try:
                         # self.glitcher.block(timeout=0.1)
-                        self.glitcher.wait_done(1)
+                        self.glitcher.wait_done(0.1)
+                        # wait until status pins return, or 
+                        pin_sum = 0
+                        i = 0
+                        while pin_sum == 0:
+                            result = self.glitcher.pinstat()
+                            pin_sum = sum(result.values())
+                            i += 1
+                        print(f"Pin status stabilized after {i} checks.")
 
-                        result = self.glitcher.pinstat()
+                        # result = self.glitcher.pinstat()
 
                         success = result["success"]
                         bor_reset = result["bor"]
@@ -129,19 +145,21 @@ class Main:
                                 title="Successful glitch",
                             )
                         elif bor_reset:
+                            resets += 1
                             state = b"bor_reset"
                         elif por_reset:
+                            resets += 1
                             state = b"por_reset"
                         else:
                             state = b"expected"
                     except TimeoutError:
                         print("[-] Timeout received in block(). Continuing.")
-                        self.glitcher.power_cycle_reset(0.2)
+                        self.glitcher.power_cycle_reset(20_000)
                         time.sleep(0.2)
                         state = b"timeout"
 
                     color = self.findus_glitcher.classify(state)
-                    if state != b"expected":
+                    if state != b"expected" or exp_id + self.db.base_row_count == 0:
                         self.db.insert(
                             exp_id,
                             voltage * 100,
@@ -164,6 +182,9 @@ class Main:
                         )
                     )
                     exp_id += 1
+                else:
+                    continue  # only executed if the inner loop did NOT break
+                break  # inner loop did break, break the outer loop
 
 
 if __name__ == "__main__":
