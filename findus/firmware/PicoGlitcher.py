@@ -587,11 +587,6 @@ class PicoGlitcher():
             self.pin_ps_trigger = self.ad910x.get_trigger_pin()
             self.pulse_generator = PulseGenerator(vhigh=self.config["ps_offset"], factor=self.config["ps_factor"])
 
-        self.success_pin_num = Globals.SUCCESS_PIN
-        self.success_pin = Pin(self.success_pin_num, Pin.IN, Pin.PULL_DOWN)
-        self.expected_pin_num = Globals.EXPECTED_PIN
-        self.expected_pin = Pin(self.expected_pin_num, Pin.IN, Pin.PULL_DOWN)
-
     def switch_pio(self, pio_base):
         self.sm0 = PIO(pio_base).state_machine(0)
         self.sm1 = PIO(pio_base).state_machine(1)
@@ -1288,24 +1283,6 @@ class PicoGlitcher():
             check = self.sm0.rx_fifo() > 0
             print(check)
             return check
-        
-    def check_success_pin(self) -> bool:
-        """
-        Read the configured success-check GPIO and return True if it's high.
-        Call this after check_glitch().
-        """
-        val = self.success_pin.value()
-        print(f"GPIO{self.success_pin_num} = {val}")
-        return bool(val)
-
-    def check_expected_pin(self) -> bool:
-        """
-        Read the configured expected GPIO and return True if it's high.
-        Call this after check_glitch().
-        """
-        val = self.expected_pin.value()
-        print(f"GPIO{self.expected_pin_num} = {val}")
-        return bool(val)
 
     def get_sm1_output(self):
         if self.sm1 is not None:
