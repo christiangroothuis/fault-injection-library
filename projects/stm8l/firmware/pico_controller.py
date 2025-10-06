@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from projects.stm8l.firmware import proto
 import time, struct, sys
 import serial, serial.tools.list_ports
 from findus import Pyboard, PyboardError
@@ -7,9 +8,11 @@ import argparse
 
 
 MODULE = "glitcher"  # fixed module name on device
-REMOTE = "glitcher.py"  # fixed remote path on device
+REMOTE_GLITCHER = "glitcher.py"  # fixed remote path on device
+REMOTE_PROTO = "proto.py"  # fixed remote path on device
 CLASS = "Glitcher"  # fixed class with a main(self) method
-LOCAL = "projects/stm8l/firmware/glitcher.py"  # local path to upload
+GLITCHER_FILE = "projects/stm8l/firmware/glitcher.py"
+PROTO_FILE = "projects/stm8l/firmware/proto.py"
 
 
 class PicoController:
@@ -18,12 +21,20 @@ class PicoController:
         self.pb = None
         self.ser = None
 
+        self.connect()
+        self.open_data_channel()
+
     def connect(self):
-        print(f"[control] opening {self.port} via Pyboard…")
         self.pb = Pyboard(self.port)
-        self.pb.enter_raw_repl(soft_reset=True)
-        print(f"[control] uploading {LOCAL} -> {REMOTE}")
-        self.pb.fs_put(LOCAL, REMOTE)
+        self.pb.enter_raw_repl(soft_reset=False)
+
+        print(f"[control] uploading {GLITCHER_FILE} -> {REMOTE_GLITCHER}")
+        self.pb.fs_put(GLITCHER_FILE, REMOTE_GLITCHER)
+        print(f"[control] uploading {PROTO_FILE} -> {REMOTE_PROTO}")
+        self.pb.fs_put(PROTO_FILE, REMOTE_PROTO)
+
+        self.pb.exec(b"import uos as os; os.dupterm(None,0)\n")
+
         print(f"[control] starting {MODULE}.{CLASS}().main() in background…")
         start_code = (
             "import sys,_thread\n"
@@ -33,16 +44,24 @@ class PicoController:
             "_thread.start_new_thread(_obj.main,())\n"
             "print('STARTED')\n"
         )
-        out = self.pb.exec_(start_code).decode(errors="ignore")
+        out = self.pb.exec(start_code).decode(errors="ignore")
         if "STARTED" not in out:
             raise RuntimeError(f"device did not confirm start, got: {out!r}")
+        
         print("[control] worker started; releasing REPL/port")
+        # disable REPL to free up the port
+        # self.pb.exit_raw_repl()
+        time.sleep(0.1)
         self.pb.close()
+        print("[control] closed Pyboard")
         self.pb = None
 
     def open_data_channel(self):
         self.ser = serial.Serial(self.port, 115200, timeout=0.2)
-        time.sleep(0.3)  # let USB CDC settle
+        time.sleep(0.5)
+        self.ser.reset_input_buffer()
+        self.ser.reset_output_buffer()
+
         return self.ser
 
     def close(self):
@@ -53,27 +72,26 @@ class PicoController:
             self.pb.close()
             self.pb = None
 
-    def send_frame(self, cmd: int, payload: bytes = b""):
-        self.ser.write(bytes((cmd,)) + struct.pack("<H", len(payload)) + payload)
+    def __del__(self):
+        time.sleep(0.1)
+        if self.ser:
+            self.ser.write(proto.frame(proto.CMD["QUIT"]))
+        time.sleep(0.1)
+        self.close()
 
-    def recv_frame(self):
-        # header
-        hdr = self.ser.read(3)
-        while len(hdr) < 3:
-            more = self.ser.read(3 - len(hdr))
-            if not more:
-                continue
-            hdr += more
-        cmd = hdr[0]
-        ln = hdr[1] | (hdr[2] << 8)
-        # payload
-        data = self.ser.read(ln)
-        while len(data) < ln:
-            more = self.ser.read(ln - len(data))
-            if not more:
-                continue
-            data += more
-        return cmd, data
+    def arm_double_multiplexing(self, delay1: int, length1: int, v1: str, delay2: int, length2: int, v2: str):
+        frame = proto.frame(
+            proto.CMD["ARM_DOUBLE_MULTIPLEXING"],
+            delay1,
+            length1,
+            proto.voltage_map[v1],
+            delay2,
+            length2,
+            proto.voltage_map[v2],
+        )
+        print(frame)
+
+        self.ser.write(frame)
 
 
 if __name__ == "__main__":
@@ -87,26 +105,15 @@ if __name__ == "__main__":
 
     args = p.parse_args()
     glitcher = PicoController(args.port)
+    glitcher.ser.write(b"\r\x02")
+    glitcher.ser.write(b"\r\x02")
+    glitcher.ser.write(b"\r\x02")
 
-    try:
-        glitcher.connect()
-    except PyboardError as e:
-        print("PyboardError:", e)
-        sys.exit(1)
-
-    ser = glitcher.open_data_channel()
-    print("[data] ready for fast byte I/O (send_frame/recv_frame)")
-    # --- quick demo (remove if not needed) ---
-    glitcher.send_frame(1, b"\x01")
-    # keep reading all the bytes we get byte for byte
-    for _ in range(10):
-        time.sleep(0.1)
-        print(glitcher.ser.read(1))
-
-    glitcher.ser.dtr = True
-    time.sleep(0.1)
-    glitcher.ser.dtr = False
-
-    for _ in range(10):
-        time.sleep(0.1)
-        print(glitcher.ser.read(1))
+    while True:
+        glitcher.ser.write(b"\r\x10")
+        glitcher.arm_double_multiplexing(1000, 200, "VCC", 2000, 300, "VCC")
+        print(glitcher.ser.readline())
+        # glitcher.arm_double_multiplexing(1000, 200, "1.8", 2000, 300, "GND")
+        print(glitcher.ser.readline())
+        print(glitcher.ser.readline())
+        print(glitcher.ser.readline())
