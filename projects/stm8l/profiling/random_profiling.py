@@ -26,7 +26,7 @@ class ProfilingGlitcher(PicoGlitcher):
         elif b"bor_reset" in state:
             color = "B"
         elif b"por_reset" in state:
-            color = "P"
+            color = "M"
         return color
 
 
@@ -45,7 +45,7 @@ class Main:
         }
 
         self.glitcher = GlitcherClient(args.rpico)
-        self.glitcher.power_cycle_reset(0.01)
+        self.glitcher.power_cycle_reset(50_000)
         self.findus_glitcher = ProfilingGlitcher()
 
         self.db = Database(
@@ -92,12 +92,11 @@ class Main:
                     delay, length, "VI1", delay + length + 100, length, "3.3"
                 )
 
-                self.glitcher.reset(50)
+                self.glitcher.reset(100)
                 success = False
 
                 try:
                     self.glitcher.wait_done(0.1)
-                    time.sleep(50e-6)
                     pin_state = self.glitcher.pinstat()
                     success = pin_state["success"]
                     bor_reset = pin_state["bor"]
@@ -118,7 +117,7 @@ class Main:
                         state = b"expected"
                 except TimeoutError:
                     print("[-] Timeout received in block(). Continuing.")
-                    self.glitcher.power_cycle_reset(0.2)
+                    self.glitcher.power_cycle_reset(20_000)
                     time.sleep(0.01)
                     state = b"timeout"
 
@@ -128,7 +127,7 @@ class Main:
                         exp_id, voltage * 100, delay, length, color, state, commit=False
                     )
 
-                if exp_id % 1000 == 0:
+                if exp_id % 10000 == 0:
                     self.db.con.commit()
 
                 speed = self.findus_glitcher.get_speed(self.start_time, exp_id)
