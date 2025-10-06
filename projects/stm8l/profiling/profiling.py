@@ -46,6 +46,13 @@ class Main:
             "n_glitches": 500,
         }
 
+        """
+        # Total scan so far:
+        python -m projects.stm8l.profiling.profiling --rpico /dev/ttyACM0 --psu /dev/ttyACM1 --ic 2 --bor 1 --shape clean --length 0 200 --voltage 0.20 2.20 \
+        && python -m projects.stm8l.profiling.profiling --rpico /dev/ttyACM0 --psu /dev/ttyACM1 --ic 2 --bor 1 --shape clean --length 204 448 --voltage 0.80 2.20 --resume \
+        && python -m projects.stm8l.profiling.profiling --rpico /dev/ttyACM0 --psu /dev/ttyACM1 --ic 2 --bor 1 --shape ringing --length 0 200 --voltage 0.20 2.20
+        """
+
         self.glitcher = GlitcherClient(args.rpico)
         self.glitcher.open()
         self.findus_glitcher = ProfilingGlitcher()
