@@ -111,10 +111,8 @@ class Main:
 
             try:
                 self.glitcher.wait_done(0.1) # connect TRIGGER to RESET
-                time.sleep(500e-6)
-                raw_adc = self.glitcher.adc27()
-
-                success = raw_adc > 500
+                time.sleep(100e-6)
+                success = self.glitcher.adc27() > 500
 
                 if success:
                     if self.args.programmer:
