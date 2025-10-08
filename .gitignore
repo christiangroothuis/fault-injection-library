@@ -1,5 +1,6 @@
 .DS_Store
 .venv
+venv
 .vscode
 .trunk
 pull-sync.sh
