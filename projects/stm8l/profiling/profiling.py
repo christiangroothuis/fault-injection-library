@@ -91,7 +91,7 @@ class Main:
         ):
             print(f"Setting PSU voltage to {voltage:.2f} V")
             self.psu.set_voltage(voltage)
-            time.sleep(0.1)
+            time.sleep(0.5)
             resets = 0
             
             for length in range(

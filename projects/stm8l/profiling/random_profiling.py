@@ -77,7 +77,7 @@ class Main:
             voltage = random.choice(voltages)
             print(f"Setting PSU voltage to {voltage:.2f} V")
             self.psu.set_voltage(voltage)
-            time.sleep(0.1)
+            time.sleep(0.5)
 
             if voltage < 1.0:
                 n_glitches_per_voltage = 2000
