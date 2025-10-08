@@ -37,7 +37,7 @@ class Main:
             "s_length": args.length[0],
             "e_length": args.length[1],
             "s_delay": 1876,
-            "e_delay": 1892,
+            "e_delay": 1912,
             "s_voltage": args.voltage[0],
             "e_voltage": args.voltage[1],
             "voltage_step": 0.01,
@@ -78,10 +78,21 @@ class Main:
             print(f"Setting PSU voltage to {voltage:.2f} V")
             self.psu.set_voltage(voltage)
             time.sleep(0.1)
-            for _ in range(self.parameters["n_glitches"]):
-                length = random.randint(
-                    self.parameters["s_length"], self.parameters["e_length"]
-                )
+
+            if voltage < 1.0:
+                n_glitches_per_voltage = 2000
+            else:
+                n_glitches_per_voltage = self.parameters["n_glitches"]
+
+            for _ in range(n_glitches_per_voltage):
+                if voltage < 1.0:
+                    length = random.randint(
+                        self.parameters["s_length"], min(self.parameters["e_length"], 200)
+                    )
+                else:
+                    length = random.randint(
+                        self.parameters["s_length"], self.parameters["e_length"]
+                    )
                 delay = random.randint(
                     self.parameters["s_delay"], self.parameters["e_delay"]
                 )
@@ -92,23 +103,31 @@ class Main:
                     delay, length, "VI1", delay + length + 100, length, "3.3"
                 )
 
-                self.glitcher.reset(100)
+                self.glitcher.reset(50)
                 success = False
 
                 try:
                     self.glitcher.wait_done(0.1)
-                    pin_state = self.glitcher.pinstat()
-                    success = pin_state["success"]
-                    bor_reset = pin_state["bor"]
-                    por_reset = pin_state["por"]
+                    pin_sum = 0
+                    i = 0
+                    while pin_sum == 0:
+                        result = self.glitcher.pinstat()
+                        pin_sum = sum(result.values())
+                        i += 1
+                    print(f"Pins stable after {i} reads")
+
+                    # pin_state = self.glitcher.pinstat()
+                    success = result["success"]
+                    bor_reset = result["bor"]
+                    por_reset = result["por"]
 
                     if success:
                         state = b"success"
 
-                        send_pushover_notification(
-                            message=f"Successful glitch! with delays={delay} ns, length={length} ns, voltage={voltage:.2f} V",
-                            title="Successful glitch",
-                        )
+                        # send_pushover_notification(
+                        #     message=f"Successful glitch! with delays={delay} ns, length={length} ns, voltage={voltage:.2f} V",
+                        #     title="Successful glitch",
+                        # )
                     elif bor_reset:
                         state = b"bor_reset"
                     elif por_reset:
@@ -122,12 +141,13 @@ class Main:
                     state = b"timeout"
 
                 color = self.findus_glitcher.classify(state)
-                if state != b"expected":
+                if state != b"expected" or exp_id == 0:
                     self.db.insert(
                         exp_id, voltage * 100, delay, length, color, state, commit=False
                     )
 
-                if exp_id % 10000 == 0:
+                if exp_id % 1000 == 0:
+                    self.glitcher.power_cycle_reset(500)
                     self.db.con.commit()
 
                 speed = self.findus_glitcher.get_speed(self.start_time, exp_id)
