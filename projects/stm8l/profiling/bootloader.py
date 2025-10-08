@@ -2,6 +2,7 @@
 
 import argparse
 import os
+from projects.stm8l.firmware.glitcher import GlitcherClient
 import random
 import sys
 import time
@@ -15,18 +16,6 @@ RX_PIN = 27
 
 
 class BootloaderProfilingGlitcher(PicoGlitcher):
-    def init(self, *args, **kwargs):
-        super().init(*args, **kwargs)
-
-        self.pico_glitcher.pyb.exec_raw_no_follow(
-            "import machine\n" f"adc = machine.ADC({RX_PIN})\n"
-        )
-
-    def read_success_flag(self) -> bool:
-        out = self.pico_glitcher.pyb.exec_raw(f"print(int(adc.read_u16()))\n")
-
-        return int(out[0].strip()) > 5000
-
     def classify(self, state: bytes) -> str:
         color = "C"
         if b"expected" in state:
@@ -44,20 +33,14 @@ class Main:
         self.parameters = {
             "s_length": 24,
             "e_length": 24,
-            "s_delay": 29460, 
-            "e_delay": 29520,
+            "s_delay": 25000, 
+            "e_delay": 35000,
             "voltage": 1.10,
         }
 
-        self.glitcher = BootloaderProfilingGlitcher()
-        self.glitcher.init(port=args.rpico, enable_vtarget=False)
-        self.glitcher.change_config_and_reset("mux_vinit", "3.3")
-        self.glitcher.init(port=args.rpico, enable_vtarget=False)
-
-        self.glitcher.rising_edge_trigger()
-        self.glitcher.set_multiplexing()
-
-        self.glitcher.power_cycle_reset(0.01)
+        self.glitcher = GlitcherClient(args.rpico)
+        self.glitcher.power_cycle_reset(50_000)
+        self.findus_glitcher = BootloaderProfilingGlitcher()
 
         self.db = Database(
             sys.argv + [f"{k}={v}" for k, v in self.parameters.items()],
@@ -83,24 +66,18 @@ class Main:
                 random.randint(self.parameters["s_delay"], self.parameters["e_delay"])
             )
             delay = round(delay / 4) * 4  # ensure delay is multiple of 4
-            length = int(
-                random.randint(self.parameters["s_length"], self.parameters["e_length"])
-            )
-            length = round(length / 4) * 4
-            
-            # self.glitcher.arm_double_multiplexing(delay, length, "VI1", delay + length + 300, length, "3.3")
-            
-            mul_config = {"t1": length, "v1": "VI1"}
-            self.glitcher.arm_multiplexing(delay, mul_config)
+            length = self.parameters["s_length"]
 
-            self.glitcher.reset(100e-6)  # reset for 100us
+            self.glitcher.arm_double_multiplexing(delay, length, "VI1", delay + length + 100, length, "3.3")
+            self.glitcher.reset(50)
             success = False
 
             try:
-                self.glitcher.block(timeout=1)
-                time.sleep(100e-6)  # wait for rx to go high if success
-                success = self.glitcher.read_success_flag()
-
+                self.glitcher.wait_done(0.1)
+                time.sleep(500e-6)
+                raw_adc = self.glitcher.adc27()
+                success = raw_adc > 500
+                
                 if success:
                     state = b"success"
                 else:
