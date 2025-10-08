@@ -33,3 +33,4 @@ private-examples
 !.env.example
 *.hex
 *.elf
+output
