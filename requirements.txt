@@ -10,3 +10,5 @@ scipy
 requests
 dotenv
 numpy
+ipykernel
+seaborn
