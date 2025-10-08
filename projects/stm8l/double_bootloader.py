@@ -110,13 +110,11 @@ class Main:
             success = False
 
             try:
-                self.glitcher.wait_done(0.1)
-                time.sleep(100e-6)  # wait for rx to go high if success
-                raw_adc = self.glitcher.adc27
+                self.glitcher.wait_done(0.1) # connect TRIGGER to RESET
+                time.sleep(500e-6)
+                raw_adc = self.glitcher.adc27()
 
-                print(raw_adc)
-
-                success = raw_adc > 5000
+                success = raw_adc > 500
 
                 if success:
                     if self.args.programmer:
