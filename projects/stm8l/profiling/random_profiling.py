@@ -146,7 +146,7 @@ class Main:
                         exp_id, voltage * 100, delay, length, color, state, commit=False
                     )
 
-                if exp_id % 1000 == 0:
+                if exp_id % 10000 == 0:
                     self.glitcher.power_cycle_reset(500)
                     self.db.con.commit()
 
