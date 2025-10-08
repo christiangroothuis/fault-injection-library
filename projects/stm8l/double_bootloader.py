@@ -3,13 +3,13 @@
 import argparse
 import itertools
 import pathlib
+from projects.stm8l.firmware.glitcher import GlitcherClient
 import random
 import subprocess
 import sys
 import time
 import secrets
 from dotenv import load_dotenv
-from binascii import hexlify
 from findus import Database, PicoGlitcher
 
 from projects.stm8l.utils.pushover import send_pushover_notification
@@ -28,18 +28,6 @@ def enable_tx():
 
 
 class BootloaderProfilingGlitcher(PicoGlitcher):
-    def init(self, *args, **kwargs):
-        super().init(*args, **kwargs)
-
-        self.pico_glitcher.pyb.exec_raw_no_follow(
-            "import machine\n" f"adc = machine.ADC({RX_PIN})\n"
-        )
-
-    def read_success_flag(self) -> bool:
-        out = self.pico_glitcher.pyb.exec_raw(f"print(int(adc.read_u16()))\n")
-
-        return int(out[0].strip()) > 5000
-
     def classify(self, state: bytes) -> str:
         color = "C"
         if b"expected" in state:
@@ -79,15 +67,11 @@ class Main:
         if args.programmer:
             self.programmer = STM8Reader(port=args.programmer)
 
-        self.glitcher = BootloaderProfilingGlitcher()
-        self.glitcher.init(port=args.rpico, enable_vtarget=False)
-        self.glitcher.change_config_and_reset("mux_vinit", "3.3")
-        self.glitcher.init(port=args.rpico, enable_vtarget=False)
+        self.findus_glitcher = BootloaderProfilingGlitcher()
+        self.glitcher = GlitcherClient(args.rpico)
+        self.glitcher.open()
 
-        self.glitcher.rising_edge_trigger()
-        self.glitcher.set_multiplexing()
-
-        self.glitcher.power_cycle_reset(0.01)
+        self.glitcher.power_cycle_reset(1000)
 
         self.db = Database(
             sys.argv + [f"{k}={v}" for k, v in self.parameters.items()],
@@ -120,24 +104,19 @@ class Main:
             delay2 = random.choice(delay2_flattened)
             delay1 = round(delay1 / 4) * 4  # ensure delay is multiple of 4
             delay2 = round(delay2 / 4) * 4
-            delay2 = delay2 - (
-                delay1 + self.parameters["length"]
-            )  # make delay2 relative
 
-            mul_config = {
-                "t1": length,
-                "v1": "VI1",
-                "t2": delay2,
-                "v2": "3.3",
-            }
-            self.glitcher.arm_multiplexing(delay1, mul_config)
-            self.glitcher.reset(50e-6)  # reset for 50us
+            self.glitcher.arm_double_multiplexing(delay1, length, "VI1", delay2, length, "VI1")
+            self.glitcher.reset(50)
             success = False
 
             try:
-                self.glitcher.block(timeout=1)
+                self.glitcher.wait_done(0.1)
                 time.sleep(100e-6)  # wait for rx to go high if success
-                success = self.glitcher.read_success_flag()
+                raw_adc = self.glitcher.adc27
+
+                print(raw_adc)
+
+                success = raw_adc > 5000
 
                 if success:
                     if self.args.programmer:
@@ -170,11 +149,11 @@ class Main:
                     state = b"expected"
             except TimeoutError:
                 print("[-] Timeout received in block(). Continuing.")
-                self.glitcher.power_cycle_reset(0.2)
+                self.glitcher.power_cycle_reset(20_000)
                 time.sleep(0.2)
                 state = b"timeout"
 
-            color = self.glitcher.classify(state)
+            color = self.findus_glitcher.classify(state)
             if success:
                 self.db.insert(
                     exp_id,
@@ -185,10 +164,10 @@ class Main:
                     color,
                     state,
                 )
-            speed = self.glitcher.get_speed(self.start_time, exp_id)
+            speed = self.findus_glitcher.get_speed(self.start_time, exp_id)
             experiment_base_id = self.db.get_base_experiments_count()
             print(
-                self.glitcher.colorize(
+                self.findus_glitcher.colorize(
                     f"[+] Experiment {exp_id}\t{experiment_base_id}\t({speed})\t{self.parameters['voltage']:.2f}\t{delay1}\t{delay2}\t{length}\t{color}\t{state}",
                     color,
                 )
