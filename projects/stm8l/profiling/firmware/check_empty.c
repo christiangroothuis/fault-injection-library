@@ -2,9 +2,9 @@
 #include "stm8l.h"
 
 #define TRIG_PIN (1 << 1) // PB1
-#define SUCCESS_PIN (1 << 6) // PB6
-#define BOR_RESET_PIN (1 << 5) // PB5
 #define PORF_RESET_PIN (1 << 4) // PB4
+#define BOR_RESET_PIN (1 << 5) // PB5
+#define SUCCESS_PIN (1 << 6) // PB6
 
 #define RST_SR_BORF (1 << 5) // Brown-Out Reset flag
 #define RST_SR_PORF (1 << 0) // Power-On Reset flag
