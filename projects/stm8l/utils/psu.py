@@ -1,5 +1,8 @@
 from serial import Serial
+import time
 
+class PSUTimeoutError(Exception):
+    pass
 
 class PS3005D:
     def __init__(self, port):
@@ -24,7 +27,13 @@ class PS3005D:
         Args:
             voltage (float): The voltage to set, in volts (V).
         """
-        self.device.write(f"VSET1:{voltage:05.2f}".encode())
+        while abs(self.get_voltage() - voltage) > 0.01:
+            time.sleep(0.1)
+            if attempts == 0:
+                raise PSUTimeoutError("Failed to set voltage on PSU")
+            self.device.write(f"VSET1:{voltage:05.2f}".encode())
+            time.sleep(0.1)
+            attempts -= 1
 
     def set_current_limit(self, current: float):
         """

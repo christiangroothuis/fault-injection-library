@@ -10,7 +10,7 @@ import numpy as np
 from dotenv import load_dotenv
 
 from findus import Database, PicoGlitcher
-from ..utils.psu import PS3005D
+from ..utils.psu import PS3005D, PSUTimeoutError
 from ..utils.pushover import send_pushover_notification
 
 
@@ -61,7 +61,6 @@ class Main:
         exp_id = 0
 
         self.psu.set_voltage(self.parameters["s_voltage"])
-        time.sleep(0.1)
         self.psu.set_current_limit(0.2)
         time.sleep(0.1)
         self.psu.turn_on()
@@ -76,23 +75,19 @@ class Main:
         while True:
             voltage = random.choice(voltages)
             print(f"Setting PSU voltage to {voltage:.2f} V")
-            self.psu.set_voltage(voltage)
-            time.sleep(0.5)
+            try:
+                self.psu.set_voltage(voltage)
+                time.sleep(0.1)
+            except PSUTimeoutError:
+                time.sleep(0.5)
+                self.psu.device.close()
+                self.psu = PS3005D(port=self.args.psu)
+                self.psu.set_voltage(voltage)
 
-            if voltage < 1.0:
-                n_glitches_per_voltage = 2000
-            else:
-                n_glitches_per_voltage = self.parameters["n_glitches"]
-
-            for _ in range(n_glitches_per_voltage):
-                if voltage < 1.0:
-                    length = random.randint(
-                        self.parameters["s_length"], min(self.parameters["e_length"], 200)
-                    )
-                else:
-                    length = random.randint(
-                        self.parameters["s_length"], self.parameters["e_length"]
-                    )
+            for _ in range(self.parameters["n_glitches"]):
+                length = random.randint(
+                    self.parameters["s_length"], self.parameters["e_length"]
+                )
                 delay = random.randint(
                     self.parameters["s_delay"], self.parameters["e_delay"]
                 )
@@ -147,7 +142,6 @@ class Main:
                     )
 
                 if exp_id % 1000 == 0:
-                    self.glitcher.power_cycle_reset(500)
                     self.db.con.commit()
 
                 speed = self.findus_glitcher.get_speed(self.start_time, exp_id)
