@@ -6,6 +6,7 @@ venv
 pull-sync.sh
 __pycache__
 *.sqlite
+*.sqlite-journal
 *.bin
 *.log
 *.org
