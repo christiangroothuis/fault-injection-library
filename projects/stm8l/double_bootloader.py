@@ -175,6 +175,9 @@ class Main:
             )
             exp_id += 1
 
+    def __del__(self):
+        disable_tx()
+
 
 if __name__ == "__main__":
     load_dotenv()
