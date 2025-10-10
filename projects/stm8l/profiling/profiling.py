@@ -207,7 +207,6 @@ if __name__ == "__main__":
         "--no-store", action="store_true", help="Do not write results to the database"
     )
     p.add_argument("--ic", required=True, help="IC number")
-    p.add_argument("--bor", help="Brownout reset voltage enabled")
     p.add_argument("--length", required=True, nargs=2, help="length start and end", type=int)
     p.add_argument("--voltage", required=True, nargs=2, help="voltage start and end", type=float)
     args = p.parse_args()
