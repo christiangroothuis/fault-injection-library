@@ -66,7 +66,10 @@ class Main:
                 random.randint(self.parameters["s_delay"], self.parameters["e_delay"])
             )
             delay = round(delay / 4) * 4  # ensure delay is multiple of 4
-            length = self.parameters["s_length"]
+            length = int(
+                random.randint(self.parameters["s_length"], self.parameters["e_length"])
+            )
+            length = round(length / 4) * 4  # ensure length is multiple of
 
             self.glitcher.arm_double_multiplexing(delay, length, "VI1", delay + length + 100, length, "3.3")
             self.glitcher.reset(50)
@@ -74,7 +77,6 @@ class Main:
 
             try:
                 self.glitcher.wait_done(0.1)
-                time.sleep(500e-6)
                 raw_adc = self.glitcher.adc27()
                 success = raw_adc > 500
                 
@@ -82,21 +84,24 @@ class Main:
                     state = b"success"
                 else:
                     state = b"expected"
-            except:
+            except TimeoutError:
                 print("[-] Timeout received in block(). Continuing.")
-                self.glitcher.power_cycle_reset(0.2)
-                time.sleep(0.2)
+                self.glitcher.power_cycle_reset(20_000)
                 state = b"timeout"
 
-            color = self.glitcher.classify(state)
-            if success:
+            color = self.findus_glitcher.classify(state)
+            if state != b"expected":
                 self.db.insert(
-                    exp_id, self.parameters["voltage"] * 100, delay, length, color, state
+                    exp_id, self.parameters["voltage"] * 100, delay, length, color, state, commit=False
                 )
-            speed = self.glitcher.get_speed(self.start_time, exp_id)
+    
+            if exp_id % 10000:
+                self.db.con.commit()
+                
+            speed = self.findus_glitcher.get_speed(self.start_time, exp_id)
             experiment_base_id = self.db.get_base_experiments_count()
             print(
-                self.glitcher.colorize(
+                self.findus_glitcher.colorize(
                     f"[+] Experiment {exp_id}\t{experiment_base_id}\t({speed})\t{self.parameters['voltage']:.2f}\t{delay:>{len(str(self.parameters['e_delay']))}}\t{length}\t{color}\t{state}",
                     color,
                 )
