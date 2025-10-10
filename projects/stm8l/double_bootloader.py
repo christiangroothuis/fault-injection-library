@@ -76,6 +76,7 @@ class Main:
             self.programmer = None
 
         self.glitcher = GlitcherClient(args.rpico)
+        self.glitcher.trigger_on_reset_pin()
         self.glitcher.power_cycle_reset(50_000)
         self.findus_glitcher = BootloaderProfilingGlitcher()
 

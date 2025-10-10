@@ -54,7 +54,7 @@ class Main:
         """
 
         self.glitcher = GlitcherClient(args.rpico)
-        self.glitcher.open()
+        self.glitcher.trigger_on_trigger_pin()
         self.findus_glitcher = ProfilingGlitcher()
         # self.glitcher.init(port=args.rpico, enable_vtarget=False)
         # self.glitcher.change_config_and_reset("mux_vinit", "3.3")

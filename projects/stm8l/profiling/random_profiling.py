@@ -45,6 +45,7 @@ class Main:
         }
 
         self.glitcher = GlitcherClient(args.rpico)
+        self.glitcher.trigger_on_trigger_pin()
         self.glitcher.power_cycle_reset(50_000)
         self.findus_glitcher = ProfilingGlitcher()
 

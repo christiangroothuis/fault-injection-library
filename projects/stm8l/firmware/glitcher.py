@@ -10,6 +10,8 @@ CMD_PWRRST = 0x05
 CMD_CHECK = 0x06
 CMD_PINSTAT = 0x07
 CMD_ADC27 = 0x08
+CMD_TRIGGER_ON_RESET = 0x09
+CMD_TRIGGER_ON_TRIGGER = 0x0A
 
 ST_OK, ST_BAD_ARGS, ST_BUSY, ST_UNKNOWN = 0x00, 0x01, 0x02, 0x03
 
@@ -149,6 +151,12 @@ class GlitcherClient:
         pl = self._send(CMD_ADC27)
         raw = struct.unpack("<H", pl)
         return raw[0]
+    
+    def trigger_on_reset_pin(self):
+        self._send(CMD_TRIGGER_ON_RESET)
+
+    def trigger_on_trigger_pin(self):
+        self._send(CMD_TRIGGER_ON_TRIGGER)
 
 
 # testing code

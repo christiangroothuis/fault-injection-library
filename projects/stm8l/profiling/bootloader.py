@@ -33,15 +33,16 @@ class Main:
         self.parameters = {
             "s_length": 1896,
             "e_length": 1896,
-            # "s_delay": 29450,
-            # "e_delay": 29600,
-            "s_delay": 34000,
-            "e_delay": 38000,
+            "s_delay": 29450,
+            "e_delay": 29600,
+            # "s_delay": 34000,
+            # "e_delay": 38000,
             "voltage": 2.08,
         }
 # 
         self.glitcher = GlitcherClient(args.rpico)
         self.glitcher.power_cycle_reset(50_000)
+        self.glitcher.trigger_on_reset_pin()
         self.findus_glitcher = BootloaderProfilingGlitcher()
 
         self.db = Database(
