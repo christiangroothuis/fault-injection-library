@@ -31,13 +31,15 @@ class Main:
     def __init__(self, args):
         self.args = args
         self.parameters = {
-            "s_length": 24,
-            "e_length": 24,
-            "s_delay": 25000, 
-            "e_delay": 35000,
-            "voltage": 1.10,
+            "s_length": 1896,
+            "e_length": 1896,
+            # "s_delay": 29450,
+            # "e_delay": 29600,
+            "s_delay": 34000,
+            "e_delay": 38000,
+            "voltage": 2.08,
         }
-
+# 
         self.glitcher = GlitcherClient(args.rpico)
         self.glitcher.power_cycle_reset(50_000)
         self.findus_glitcher = BootloaderProfilingGlitcher()
@@ -82,6 +84,11 @@ class Main:
                 
                 if success:
                     state = b"success"
+
+                    send_pushover_notification(
+                        message=f"Successful glitch! with delays={delay} ns, length={length} ns",
+                        title="Successful glitch",
+                    )
                 else:
                     state = b"expected"
             except TimeoutError:
