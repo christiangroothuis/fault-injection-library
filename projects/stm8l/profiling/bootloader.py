@@ -70,6 +70,8 @@ class Main:
             self.programmer.flash_empty()
             self.programmer.write_option_bytes([BOR_ON])
 
+        self.glitcher.power_cycle_reset(50_000)
+
         while True:
             delay = int(random.randint(self.delay[0], self.delay[1]))
             delay = round(delay / 4) * 4  # ensure delay is multiple of 4
