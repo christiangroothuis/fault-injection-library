@@ -25,19 +25,31 @@ class BootloaderProfilingGlitcher(PicoGlitcher):
         elif b"success" in state:
             color = "R"
         return color
+    
 
+""" 
+check_empty bypass:
+1. flash check_empty.ihx
+2. flash bor_on.bin opt
+
+rdp_check bypass:
+1. flash empty 
+2. flash rop_on.bin opt
+"""
 
 class Main:
     def __init__(self, args):
         self.args = args
         self.parameters = {
-            "s_length": 1896,
-            "e_length": 1896,
-            "s_delay": 29450,
-            "e_delay": 29600,
+            "s_length": 900,
+            "e_length": 1100,
+            # "s_delay": 29450,
+            # "e_delay": 29600,
+            "s_delay": 28000,
+            "e_delay": 30000,
             # "s_delay": 34000,
             # "e_delay": 38000,
-            "voltage": 2.08,
+            "voltage": 2.34,
         }
 # 
         self.glitcher = GlitcherClient(args.rpico)
