@@ -3,18 +3,19 @@ import subprocess
 import tempfile
 from typing import Iterable, List
 
-DEFAULT_ERASE_PART = 'stm8l151?4'
-DEFAULT_PART = 'stm8l051f3'
-DEFAULT_TRANSPORT = 'stlinkv2'
-OPT_BASE_ADDR   = 0x4800
+DEFAULT_ERASE_PART = "stm8l151?4"
+DEFAULT_PART = "stm8l051f3"
+DEFAULT_TRANSPORT = "stlinkv2"
+OPT_BASE_ADDR = 0x4800
 OPT_BLOCK_BYTES = 16
 CHIP_VERSION_ADDR = 0x483E
-CHECK_EMPTY_FIRMWARE = 'projects/stm8l/profiling/firmware/build/check_empty.ihx'
-EMPTY_FIRMWARE = 'projects/stm8l/profiling/firmware/empty_flash.bin'
+CHECK_EMPTY_FIRMWARE = "projects/stm8l/profiling/firmware/build/check_empty.ihx"
+EMPTY_FIRMWARE = "projects/stm8l/profiling/firmware/empty_flash.bin"
 
-RDP_OFF = bytes([0xAA] + [0x00]*15)
-BOR_ON  = bytes([0x00]*0x0A + [0x01] + [0x00]*5)
-BL_ON   = bytes([0x00]*0x0B + [0x55] + [0x00]*4)
+RDP_OFF = bytes([0xAA] + [0x00] * 15)
+BOR_ON = bytes([0x00] * 0x0A + [0x01] + [0x00] * 5)
+BL_ON = bytes([0x00] * 0x0B + [0x55] + [0x00] * 4)
+
 
 class Stm8flashError(RuntimeError):
     pass
@@ -31,7 +32,9 @@ class STM8Programmer:
     def _run(self, *args: str) -> None:
         cmd = self._cmd(*args)
         try:
-            subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            subprocess.run(
+                cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            )
         except FileNotFoundError:
             raise Stm8flashError("stm8flash not found on PATH")
         except subprocess.CalledProcessError as e:
@@ -40,7 +43,8 @@ class STM8Programmer:
     def _tempfile_write(self, data: bytes) -> str:
         f = tempfile.NamedTemporaryFile(delete=False)
         try:
-            f.write(data); f.flush()
+            f.write(data)
+            f.flush()
             return f.name
         finally:
             f.close()
@@ -51,7 +55,12 @@ class STM8Programmer:
         self._run("-w", file_path, "-s", "flash")
 
     def unlock_rop(self, part: str = DEFAULT_ERASE_PART) -> None:
-        subprocess.run(["stm8flash", "-c", self.transport, "-p", part, "-u"], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        subprocess.run(
+            ["stm8flash", "-c", self.transport, "-p", part, "-u"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
 
     def read(self, addr: int, length: int) -> bytes:
         tmp = tempfile.NamedTemporaryFile(delete=False)
@@ -61,8 +70,10 @@ class STM8Programmer:
             with open(tmp.name, "rb") as f:
                 return f.read(length)
         finally:
-            try: os.unlink(tmp.name)
-            except OSError: pass
+            try:
+                os.unlink(tmp.name)
+            except OSError:
+                pass
 
     def write(self, addr: int, data: bytes) -> None:
         path = self._tempfile_write(data)
@@ -87,13 +98,21 @@ class STM8Programmer:
     def read_option_bytes(self) -> bytes:
         return self.read(OPT_BASE_ADDR, OPT_BLOCK_BYTES)
 
-    def write_option_bytes(self, features: Iterable[bytes], preserve_current=False, verify=True) -> bytes:
-        base = self.read_option_bytes() if preserve_current else bytes([0x00]*OPT_BLOCK_BYTES)
+    def write_option_bytes(
+        self, features: Iterable[bytes], preserve_current=False, verify=True
+    ) -> bytes:
+        base = (
+            self.read_option_bytes()
+            if preserve_current
+            else bytes([0x00] * OPT_BLOCK_BYTES)
+        )
         block = self.or_blocks([base, *features])
         self.write(OPT_BASE_ADDR, block)
         rb = self.read_option_bytes() if verify else block
         if verify and rb != block:
-            raise Stm8flashError(f"Option-byte verify failed:\n wrote: {block.hex()}\n read : {rb.hex()}")
+            raise Stm8flashError(
+                f"Option-byte verify failed:\n wrote: {block.hex()}\n read : {rb.hex()}"
+            )
         return rb
 
     def read_chip_id(self) -> int:
@@ -114,6 +133,7 @@ class STM8Programmer:
 
     def flash_empty(self) -> None:
         self.write_firmware(EMPTY_FIRMWARE)
+
 
 if __name__ == "__main__":
     p = STM8Programmer()

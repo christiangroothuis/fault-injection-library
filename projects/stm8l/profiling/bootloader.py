@@ -24,7 +24,6 @@ class BootloaderProfilingGlitcher(PicoGlitcher):
         elif b"success" in state:
             color = "R"
         return color
-    
 
 
 class Main:
@@ -42,7 +41,7 @@ class Main:
         print(f"Chip ID: {self.chip_id:02X}")
 
         self.db = Database(
-            sys.argv,# + [f"{k}={v}" for k, v in self.parameters.items()],
+            sys.argv,  # + [f"{k}={v}" for k, v in self.parameters.items()],
             resume=args.resume,
             nostore=args.no_store,
             column_names=["voltage", "delay", "length"],
@@ -59,7 +58,7 @@ class Main:
         time.sleep(0.1)
         self.psu.turn_on()
         time.sleep(0.1)
-        
+
         if self.args.part == "empty":
             self.delay = (28000, 34000)
             print("Flashing check_empty.ihx")
@@ -74,12 +73,12 @@ class Main:
         while True:
             delay = int(random.randint(self.delay[0], self.delay[1]))
             delay = round(delay / 4) * 4  # ensure delay is multiple of 4
-            length = int(
-                random.randint(self.args.length[0], self.args.length[1])
-            )
+            length = int(random.randint(self.args.length[0], self.args.length[1]))
             length = round(length / 4) * 4  # ensure length is multiple of 4
 
-            self.glitcher.arm_double_multiplexing(delay, length, "VI1", delay + length + 100, length, "3.3")
+            self.glitcher.arm_double_multiplexing(
+                delay, length, "VI1", delay + length + 100, length, "3.3"
+            )
             self.glitcher.reset(50)
             success = False
 
@@ -87,7 +86,7 @@ class Main:
                 self.glitcher.wait_done(0.1)
                 raw_adc = self.glitcher.adc27()
                 success = raw_adc > 500
-                
+
                 if success:
                     state = b"success"
 
@@ -105,12 +104,18 @@ class Main:
             color = self.findus_glitcher.classify(state)
             if state != b"expected":
                 self.db.insert(
-                    exp_id, self.args.voltage * 100, delay, length, color, state, commit=False
+                    exp_id,
+                    self.args.voltage * 100,
+                    delay,
+                    length,
+                    color,
+                    state,
+                    commit=False,
                 )
-    
+
             if exp_id % 10000:
                 self.db.con.commit()
-                
+
             speed = self.findus_glitcher.get_speed(self.start_time, exp_id)
             experiment_base_id = self.db.get_base_experiments_count()
             print(
@@ -147,8 +152,17 @@ if __name__ == "__main__":
     p.add_argument(
         "--no-store", action="store_true", help="Do not write results to the database"
     )
-    p.add_argument("--part", choices=["empty", "rdp"], required=True, help="Which part to target")
-    p.add_argument("--length", required=True, type=int, nargs=2, metavar=("MIN", "MAX"), help="Length range in ns")
+    p.add_argument(
+        "--part", choices=["empty", "rdp"], required=True, help="Which part to target"
+    )
+    p.add_argument(
+        "--length",
+        required=True,
+        type=int,
+        nargs=2,
+        metavar=("MIN", "MAX"),
+        help="Length range in ns",
+    )
     p.add_argument("--voltage", required=True, type=float, help="Glitch voltage in V")
     args = p.parse_args()
 
