@@ -86,8 +86,12 @@ class Main:
                 self.psu.set_voltage(voltage)
 
             for _ in range(self.parameters["n_glitches"]):
+                if voltage < 0.8:
+                    max_length = 200
+                else:
+                    max_length = self.parameters["e_length"]
                 length = random.randint(
-                    self.parameters["s_length"], self.parameters["e_length"]
+                    self.parameters["s_length"], max_length
                 )
                 delay = random.randint(
                     self.parameters["s_delay"], self.parameters["e_delay"]
@@ -112,7 +116,6 @@ class Main:
                         i += 1
                     print(f"Pins stable after {i} reads")
 
-                    # pin_state = self.glitcher.pinstat()
                     success = result["success"]
                     bor_reset = result["bor"]
                     por_reset = result["por"]
