@@ -14,7 +14,7 @@ from findus import Database, PicoGlitcher
 
 from projects.stm8l.utils.pushover import send_pushover_notification
 from .utils.psu import PS3005D
-from .utils.reader import STM8Reader
+from .utils.reader import STM8Reader, SyncTimeoutError
 
 RX_PIN = 27
 
@@ -43,13 +43,16 @@ class Main:
     def __init__(self, args):
         self.args = args
         self.parameters = {
-            "length": 1896,
-            "voltage": 2.08,
+            "s_length": 900,
+            "e_length": 1100,
+            "voltage": 2.34,
             "delay1": [
-            # "s_delay": 35250,
-            # "e_delay": 35400,
+                # range(29450, 29550), # chip 3 specific
+                # range(31960, 32050), # chip 3 specific
 
-                range(29400, 29750)
+                range(29400, 29750), # actually good and generic enough
+                range(31950, 32250), # actually good and generic enough
+
                 # range(28450, 28540),
                 # range(28950, 29020),
                 # range(29240, 29260),
@@ -59,8 +62,12 @@ class Main:
                 # range(31950, 32020),
             ],
             "delay2": [
-                range(34800, 34900),
-                range(35200, 35400),
+                # range(34710, 34790), # chip 3 specific
+                # range(35150, 35275), # chip 3 specific
+
+                range(34700, 34900), # actually good and generic enough
+                range(35200, 35400), # actually good and generic enough
+
                 # range(34690, 34750),  # seems most promising
                 # range(35150, 35250),  # was range(35190, 35240), also very promising
                 # range(35680, 35730),
@@ -72,6 +79,7 @@ class Main:
 
         if args.programmer:
             self.programmer = STM8Reader(port=args.programmer)
+            self.programmer.open_8e1()
         else:
             self.programmer = None
 
@@ -100,7 +108,9 @@ class Main:
         time.sleep(0.1)
 
         while True:
-            length = self.parameters["length"]
+            length = random.randint(
+                self.parameters["s_length"], self.parameters["e_length"]
+            )
             delay1_flattened = list(
                 itertools.chain.from_iterable(self.parameters["delay1"])
             )
@@ -109,6 +119,7 @@ class Main:
                 itertools.chain.from_iterable(self.parameters["delay2"])
             )
             delay2 = random.choice(delay2_flattened)
+            length = round(length / 4) * 4  # ensure length is multiple of 4
             delay1 = round(delay1 / 4) * 4  # ensure delay is multiple of 4
             delay2 = round(delay2 / 4) * 4
 
@@ -118,33 +129,39 @@ class Main:
 
             try:
                 self.glitcher.wait_done(0.1) # connect TRIGGER to RESET
-                success = self.glitcher.adc27() > 500
+                adc = self.glitcher.adc27()
+                success = adc > 500
 
                 if success:
                     if self.programmer:
                         enable_tx()
-                        self.programmer.enter_bootloader()
-                        flash = self.programmer.read_memory(0x8000, 0x2000)
-                        eeprom = self.programmer.read_memory(0x1000, 0x00FF)
-                        self.programmer.close()
+                        try:
+                            self.programmer.enter_bootloader()
+                            flash = self.programmer.read_memory(0x8000, 0x2000)
+                            eeprom = self.programmer.read_memory(0x1000, 0x00FF)
+
+                            rand_str = secrets.token_hex(4)
+                            flash_filename = f"flash-{rand_str}.bin"
+                            eeprom_filename = f"eeprom-{rand_str}.bin"
+                            pathlib.Path(flash_filename).write_bytes(flash)
+                            pathlib.Path(eeprom_filename).write_bytes(eeprom)
+
+                            print(
+                                f"[+] Written {flash_filename} and {eeprom_filename}"
+                            )
+
+                            send_pushover_notification(
+                                message=f"Successful double glitch! with delays={delay1},{delay2} ns, length={length} ns, voltage={self.parameters['voltage']:.2f} V",
+                                title="Successful glitch",
+                            )
+                        except SyncTimeoutError:
+                            print("[-] Sync timeout error :(")
+
                         disable_tx()
 
-                        rand_str = secrets.token_hex(4)
-                        flash_filename = f"flash-{rand_str}.bin"
-                        eeprom_filename = f"eeprom-{rand_str}.bin"
-                        pathlib.Path(flash_filename).write_bytes(flash)
-                        pathlib.Path(eeprom_filename).write_bytes(eeprom)
-                        print(
-                            f"[+] Written {flash_filename} and {eeprom_filename}"
-                        )
 
-                    # send_pushover_notification(
-                    #     message=f"Successful double glitch! with delays={delay1},{delay2} ns, length={length} ns, voltage={self.parameters['voltage']:.2f} V",
-                    #     title="Successful glitch",
-                    # )
-
-                    if self.programmer:
-                        break
+                    # if self.programmer:
+                    #     break
 
                     state = b"success"
                 else:
@@ -175,6 +192,10 @@ class Main:
                 )
             )
             exp_id += 1
+
+            if exp_id % 500_000 == 0:
+                self.glitcher.close()
+                self.glitcher.reboot()
 
     def __del__(self):
         disable_tx()
