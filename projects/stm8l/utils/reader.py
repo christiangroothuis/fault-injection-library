@@ -1,6 +1,9 @@
 import serial
 import time
 
+class SyncTimeoutError(TimeoutError):
+    pass
+    
 
 class STM8Reader:
     ACK = 0x79
@@ -26,7 +29,7 @@ class STM8Reader:
                 self.ser.reset_input_buffer()
                 return True
             time.sleep(0.05)
-        raise RuntimeError("Bootloader sync failed (no ACK after 0x7F)")
+        raise SyncTimeoutError("Bootloader sync failed (no ACK after 0x7F)")
 
     def read_memory(self, start_addr, length):
         if not self.ser or not self.ser.is_open:
