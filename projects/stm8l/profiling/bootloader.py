@@ -13,8 +13,6 @@ from projects.stm8l.utils.pushover import send_pushover_notification
 from ..utils.psu import PS3005D
 from ..utils.programmer import STM8Programmer, RDP_OFF, BOR_ON
 
-RX_PIN = 27
-
 
 class BootloaderProfilingGlitcher(PicoGlitcher):
     def classify(self, state: bytes) -> str:
@@ -35,6 +33,7 @@ class Main:
 
         print("Setting up glitcher...")
         self.glitcher = GlitcherClient(args.rpico)
+        self.glitcher.power_cycle_reset(50_000)
         self.glitcher.trigger_on_reset_pin()
         self.findus_glitcher = BootloaderProfilingGlitcher()
         self.programmer = STM8Programmer()
