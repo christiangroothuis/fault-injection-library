@@ -1,5 +1,5 @@
 import serial, struct, time
-from findus import PicoGlitcher
+import subprocess
 
 SOF_REQ = 0xAA
 SOF_RESP = 0x55
@@ -42,6 +42,7 @@ class GlitcherClient:
         self.timeout = timeout
         self.ser: serial.Serial | None = None
         
+        self.reboot()
         self.open()
 
     def open(self):
@@ -54,6 +55,11 @@ class GlitcherClient:
         if self.ser:
             self.ser.close()
             self.ser = None
+
+    def reboot(self):
+        subprocess.run(["picotool", "reboot", "-f"], check=True)
+        time.sleep(0.1)
+        self.open()
             
     def __exit__(self, *_):
         self.close()
