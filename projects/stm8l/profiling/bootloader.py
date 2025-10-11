@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from findus import Database, PicoGlitcher
 from projects.stm8l.utils.pushover import send_pushover_notification
 from ..utils.psu import PS3005D
+from ..utils.programmer import STM8Programmer, RDP_OFF, BOR_ON
 
 RX_PIN = 27
 
@@ -27,38 +28,22 @@ class BootloaderProfilingGlitcher(PicoGlitcher):
         return color
     
 
-""" 
-check_empty bypass:
-1. flash check_empty.ihx
-2. flash bor_on.bin opt
-
-rdp_check bypass:
-1. flash empty 
-2. flash rop_on.bin opt
-"""
 
 class Main:
     def __init__(self, args):
         self.args = args
-        self.parameters = {
-            "s_length": 900,
-            "e_length": 1100,
-            # "s_delay": 29450,
-            # "e_delay": 29600,
-            "s_delay": 28000,
-            "e_delay": 30000,
-            # "s_delay": 34000,
-            # "e_delay": 38000,
-            "voltage": 2.34,
-        }
-# 
+
+        print("Setting up glitcher...")
         self.glitcher = GlitcherClient(args.rpico)
-        self.glitcher.power_cycle_reset(50_000)
         self.glitcher.trigger_on_reset_pin()
         self.findus_glitcher = BootloaderProfilingGlitcher()
+        self.programmer = STM8Programmer()
+
+        self.chip_id = self.programmer.read_chip_id()
+        print(f"Chip ID: {self.chip_id:02X}")
 
         self.db = Database(
-            sys.argv + [f"{k}={v}" for k, v in self.parameters.items()],
+            sys.argv,# + [f"{k}={v}" for k, v in self.parameters.items()],
             resume=args.resume,
             nostore=args.no_store,
             column_names=["voltage", "delay", "length"],
@@ -69,22 +54,31 @@ class Main:
     def run(self):
         exp_id = 0
 
-        self.psu.set_voltage(self.parameters["voltage"])
+        self.psu.set_voltage(self.args.voltage)
         time.sleep(0.1)
         self.psu.set_current_limit(0.2)
         time.sleep(0.1)
         self.psu.turn_on()
         time.sleep(0.1)
+        
+        if self.args.part == "empty":
+            self.delay = (28000, 34000)
+            print("Flashing check_empty.ihx")
+            self.programmer.flash_check_empty()
+            self.programmer.write_option_bytes([RDP_OFF, BOR_ON])
+        elif self.args.part == "rdp":
+            self.delay = (34000, 38000)
+            print("Flashing empty + RDP")
+            self.programmer.flash_empty()
+            self.programmer.write_option_bytes([BOR_ON])
 
         while True:
-            delay = int(
-                random.randint(self.parameters["s_delay"], self.parameters["e_delay"])
-            )
+            delay = int(random.randint(self.delay[0], self.delay[1]))
             delay = round(delay / 4) * 4  # ensure delay is multiple of 4
             length = int(
-                random.randint(self.parameters["s_length"], self.parameters["e_length"])
+                random.randint(self.args.length[0], self.args.length[1])
             )
-            length = round(length / 4) * 4  # ensure length is multiple of
+            length = round(length / 4) * 4  # ensure length is multiple of 4
 
             self.glitcher.arm_double_multiplexing(delay, length, "VI1", delay + length + 100, length, "3.3")
             self.glitcher.reset(50)
@@ -112,7 +106,7 @@ class Main:
             color = self.findus_glitcher.classify(state)
             if state != b"expected":
                 self.db.insert(
-                    exp_id, self.parameters["voltage"] * 100, delay, length, color, state, commit=False
+                    exp_id, self.args.voltage * 100, delay, length, color, state, commit=False
                 )
     
             if exp_id % 10000:
@@ -122,11 +116,17 @@ class Main:
             experiment_base_id = self.db.get_base_experiments_count()
             print(
                 self.findus_glitcher.colorize(
-                    f"[+] Experiment {exp_id}\t{experiment_base_id}\t({speed})\t{self.parameters['voltage']:.2f}\t{delay:>{len(str(self.parameters['e_delay']))}}\t{length}\t{color}\t{state}",
+                    f"[+] Experiment {exp_id}\t{experiment_base_id}\t({speed})\t{self.args.voltage:.2f}\t{delay:>{len(str(self.delay[1]))}}\t{length}\t{color}\t{state}",
                     color,
                 )
             )
             exp_id += 1
+
+    def __del__(self):
+        if self.args.part == "rdp":
+            print("Removing RDP...")
+            self.programmer.unlock_rop()
+            self.programmer.write_chip_id(self.chip_id)
 
 
 if __name__ == "__main__":
@@ -148,7 +148,9 @@ if __name__ == "__main__":
     p.add_argument(
         "--no-store", action="store_true", help="Do not write results to the database"
     )
-    p.add_argument("--ic", required=True, help="IC number")
+    p.add_argument("--part", choices=["empty", "rdp"], required=True, help="Which part to target")
+    p.add_argument("--length", required=True, type=int, nargs=2, metavar=("MIN", "MAX"), help="Length range in ns")
+    p.add_argument("--voltage", required=True, type=float, help="Glitch voltage in V")
     args = p.parse_args()
 
     try:

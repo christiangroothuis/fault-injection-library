@@ -58,7 +58,7 @@ class GlitcherClient:
 
     def reboot(self):
         subprocess.run(["picotool", "reboot", "-f"], check=True)
-        time.sleep(0.1)
+        time.sleep(1)
         self.open()
             
     def __exit__(self, *_):
