@@ -1,12 +1,12 @@
 from serial import Serial
 import time
 
-class PSUTimeoutError(Exception):
+class PSUTimeoutError(TimeoutError):
     pass
 
 class PS3005D:
     def __init__(self, port):
-        self.device = Serial(port=port, baudrate=9600)
+        self.device = Serial(port=port, baudrate=9600, timeout=1.0)
 
     def get_voltage(self) -> float:
         """
@@ -50,6 +50,9 @@ class PS3005D:
     def turn_off(self):
         self.device.write("OUT0".encode())
 
+    def close(self):
+        self.device.close()
+
     def __del__(self):
         self.turn_off()
-        self.device.close()
+        self.close()

@@ -81,7 +81,7 @@ class Main:
                 time.sleep(0.1)
             except PSUTimeoutError:
                 time.sleep(0.5)
-                self.psu.device.close()
+                self.psu.close()
                 self.psu = PS3005D(port=self.args.psu)
                 self.psu.set_voltage(voltage)
 
