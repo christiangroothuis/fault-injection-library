@@ -136,6 +136,9 @@ class STM8Programmer:
 
 
 if __name__ == "__main__":
+    args = argparse.ArgumentParser(description="STM8L Programmer")
+    args.add_argument("--id", type=int, default=6, help="Chip ID to write")
+    args = args.parse_args()
     p = STM8Programmer()
-    p.write_chip_id(3)
+    p.write_chip_id(args.id)
     print(f"Chip version: {p.read_chip_id()}")
