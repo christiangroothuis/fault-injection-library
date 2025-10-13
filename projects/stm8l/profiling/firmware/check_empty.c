@@ -2,9 +2,9 @@
 #include "stm8l.h"
 
 #define TRIG_PIN (1 << 1) // PB1
-#define PORF_RESET_PIN (1 << 4) // PB4
-#define BOR_RESET_PIN (1 << 5) // PB5
-#define SUCCESS_PIN (1 << 6) // PB6
+#define PORF_RESET_PIN (1 << 2) // PB2
+#define BOR_RESET_PIN (1 << 3) // PB3
+#define SUCCESS_PIN (1 << 4) // PB4
 
 #define RST_SR_BORF (1 << 5) // Brown-Out Reset flag
 #define RST_SR_PORF (1 << 0) // Power-On Reset flag
@@ -38,17 +38,15 @@ bootl_check:
 	jra enter_app 
 
 rdp_check:
-    bset 0x5005, #0x6 // Set success pin (PB6) to indicate RDP check
+    bset 0x5005, #0x4 // Set success pin (PB4) to indicate RDP check
 
 enter_app:
     nop
 __endasm;
 
-	// PB_ODR &= ~TRIG_PIN;
-
 #ifdef ALWAYS_SUCCESS
 __asm
-	bset 0x5005, #0x6 // Set success pin (PB6)
+	bset 0x5005, #0x4 // Set success pin (PB4)
 __endasm;
 #endif
 
@@ -64,7 +62,7 @@ __endasm;
 
 		RST_SR = 0xff; // clear all reset flags
 	}
-
-    for (;;)
+	
+	for (;;)
 		;
 }
