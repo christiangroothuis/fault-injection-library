@@ -26,9 +26,9 @@ __asm
 	sim // 1 cycle
 	ld A, 0x8000 // 2
 	cp A, #0x82 // 1
-	jreq bootl_check // 4 if taken, 2 otherwise
+	jreq bootl_check // 2 if taken, 1 otherwise
 	cp A, #0xac // 1
-	jreq bootl_check // 2/4
+	jreq bootl_check // 2/1
 	jra rdp_check // 2
 
 bootl_check:
