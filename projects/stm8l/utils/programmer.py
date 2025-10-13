@@ -2,6 +2,7 @@ import os
 import subprocess
 import tempfile
 from typing import Iterable, List
+import argparse
 
 DEFAULT_ERASE_PART = "stm8l151?4"
 DEFAULT_PART = "stm8l051f3"
@@ -33,7 +34,7 @@ class STM8Programmer:
         cmd = self._cmd(*args)
         try:
             subprocess.run(
-                cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                cmd, check=True, stdout=subprocess.PIPE
             )
         except FileNotFoundError:
             raise Stm8flashError("stm8flash not found on PATH")
@@ -137,7 +138,7 @@ class STM8Programmer:
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser(description="STM8L Programmer")
-    args.add_argument("--id", type=int, default=6, help="Chip ID to write")
+    args.add_argument("--id", required=True, type=int, default=6, help="Chip ID to write")
     args = args.parse_args()
     p = STM8Programmer()
     p.write_chip_id(args.id)
