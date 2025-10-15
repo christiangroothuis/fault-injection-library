@@ -147,10 +147,10 @@ class GlitcherClient:
         pl = self._send(CMD_PINSTAT)
         m = pl[0]
         return {
-            "success": (m & 0x01) != 0,
-            "bor": (m & 0x02) != 0,
-            "por": (m & 0x04) != 0,
-            "trigger": (m & 0x08) != 0,
+            "success": bool(m & (1 << 0)),
+            "bor": bool(m & (1 << 1)),
+            "por": bool(m & (1 << 2)),
+            "trigger": bool(m & (1 << 3)),
         }
 
     def adc27(self) -> tuple[int, int]:
