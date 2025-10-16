@@ -136,12 +136,12 @@ class STM8SpiReader:
         if not self.spi:
             self.open_spi()
 
-        for _ in range(tries):
+        for i in range(tries):
             self._write_bytes([SYNCH])
             a = self._read_exact_spi(1, overall_timeout=0.8)
 
             if a and a[0] == ACK:
-                return True
+                return i
 
             time.sleep(0.05)
         raise SyncTimeoutError()
