@@ -10,8 +10,9 @@ from dotenv import load_dotenv
 
 from findus import Database, PicoGlitcher
 from projects.stm8l.utils.pushover import send_pushover_notification
+from ..utils.reader import STM8SpiReader, SyncTimeoutError
 from ..utils.psu import PS3005D
-from ..utils.programmer import STM8Programmer, RDP_OFF, BOR_ON
+from ..utils.programmer import STM8Programmer, RDP_OFF, BOR_ON, BL_ON
 
 
 class BootloaderProfilingGlitcher(PicoGlitcher):
@@ -49,6 +50,9 @@ class Main:
         self.start_time = int(time.time())
         self.psu = PS3005D(port=args.psu)
 
+        self.reader = STM8SpiReader()
+        self.reader.open_spi()
+
     def run(self):
         exp_id = 0
 
@@ -60,12 +64,13 @@ class Main:
         time.sleep(0.1)
 
         if self.args.part == "empty":
-            self.delay = (28000, 34000)
+            self.delay = (28990, 29040)
             print("Flashing check_empty.ihx")
             self.programmer.flash_check_empty()
             self.programmer.write_option_bytes([RDP_OFF, BOR_ON])
         elif self.args.part == "rdp":
-            self.delay = (34000, 38000)
+            # self.delay = (35216, 35284)
+            self.delay = (35740, 35780)
             print("Flashing empty + RDP")
             self.programmer.flash_empty()
             self.programmer.write_option_bytes([BOR_ON])
@@ -78,32 +83,43 @@ class Main:
             length = int(random.randint(self.args.length[0], self.args.length[1]))
             length = round(length / 4) * 4  # ensure length is multiple of 4
 
-            self.glitcher.arm_double_multiplexing(
-                delay, length, "VI1", delay + length + 100, length, "3.3"
-            )
+            if self.args.part == "empty":
+                self.glitcher.arm_double_multiplexing(
+                    delay, length, "VI1", delay + length + 100, length, "3.3"
+                )
+            elif self.args.part == "rdp":
+                self.glitcher.arm_double_multiplexing(
+                    delay - length - 100, length, "3.3", delay, length, "VI1"
+                )
+
             self.glitcher.reset(50)
-            success = False
+            state = b"expected"
 
             try:
                 self.glitcher.wait_done(0.1)
-                raw_adc = self.glitcher.adc27()
-                success = raw_adc > 500
-
-                if success:
-                    state = b"success"
-
-                    send_pushover_notification(
-                        message=f"Successful glitch! with delays={delay} ns, length={length} ns",
-                        title="Successful glitch",
-                    )
-                else:
-                    state = b"expected"
             except TimeoutError:
                 print("[-] Timeout received in block(). Continuing.")
                 self.glitcher.power_cycle_reset(20_000)
                 state = b"timeout"
+            
+            raw_adc = self.glitcher.adc27()
+            success = raw_adc > 500
+
+            if success:
+                try:
+                    time.sleep(0.01)
+                    self.reader.enter_bootloader(tries=2)
+                    state = b"success"
+
+                    # send_pushover_notification(
+                    #    message=f"Successful glitch! with delays={delay} ns, length={length} ns",
+                    #    title="Successful glitch",
+                    # )
+                except SyncTimeoutError:
+                    state = b"sync_timeout"
 
             color = self.findus_glitcher.classify(state)
+
             if state != b"expected":
                 self.db.insert(
                     exp_id,
@@ -115,7 +131,7 @@ class Main:
                     commit=False,
                 )
 
-            if exp_id % 10000:
+            if exp_id % 1000 == 0:
                 self.db.con.commit()
 
             speed = self.findus_glitcher.get_speed(self.start_time, exp_id)
