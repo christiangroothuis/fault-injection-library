@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 from findus import Database, PicoGlitcher
 
 from projects.stm8l.utils.pushover import send_pushover_notification
-from .utils.psu import PS3005D
+from .utils.psu import PS3005D, PSUTimeoutError
 from .utils.reader import STM8UartReader, STM8SpiReader, SyncTimeoutError
 
 class BootloaderProfilingGlitcher(PicoGlitcher):
@@ -31,48 +31,22 @@ class BootloaderProfilingGlitcher(PicoGlitcher):
 class Main:
     def __init__(self, args):
         self.args = args
-        self.parameters = {
-            "s_length": 80,
-            "e_length": 80,
-            "voltage": 2.63,
-            "delay1": [
-                # range(29450, 29550), # chip 3 specific
-                # range(31960, 32050), # chip 3 specific
-                range(30000, 35870),
-                # range(31950, 32050),
-                # range(29420, 29500), # chip 6 specific
-                # range(32130, 32230), # chip 5 specific
+        self.delay1 = list(itertools.chain.from_iterable([
+            # range(28990, 29030), # chip 3 specific
+            range(29400, 29750), # actually good and generic enough for profiling jreq glitch
+        ]))
 
-                # range(29400, 29750), # actually good and generic enough
-                # range(31950, 32250),
+        self.delay2 = list(itertools.chain.from_iterable([
+            # range(35216, 35284), # chip 3 specific
+            # range(35740, 35780), # chip 3 specific
 
-                # range(28450, 28540),
-                # range(28950, 29020),
-                # range(29240, 29260),
-                # range(29400, 29500),
-                # range(29460, 29520),
-                # range(30200, 30270),
-                # range(31950, 32020),
-            ],
-            "delay2": [
-                # range(34710, 34790), # chip 3 specific
-                # range(35150, 35275), # chip 3 specific
+            # range(34700, 34900), # actually good and generic enough
+            # range(35200, 35400), # actually good and generic enough
+            range(33000, 38000), # this too wide, but just testing
+        ]))
+        self.n_glitches = args.n_glitches
 
-                # range(34700, 34900), # actually good and generic enough
-                # range(35200, 35400), # actually good and generic enough
-
-                # range(34500, 36000), # this too wide, but just testing
-                range(35950, 38000),
-                # range(34690, 34750),  # seems most promising
-                # range(35150, 35250),  # was range(35190, 35240), also very promising
-                # range(35680, 35730),
-                # range(36210, 36234),
-                # range(37200, 37250),
-                # range(37450, 37550),
-            ],
-        }
-
-        if args.programmer:
+        if self.args.programmer:
             self.programmer = STM8SpiReader()
             self.programmer.open_spi()
         else:
@@ -84,7 +58,7 @@ class Main:
         self.findus_glitcher = BootloaderProfilingGlitcher()
 
         self.db = Database(
-            sys.argv + [f"{k}={v}" for k, v in self.parameters.items()],
+            sys.argv,
             resume=args.resume,
             nostore=args.no_store,
             column_names=["voltage", "delay1", "delay2", "length"],
@@ -95,7 +69,7 @@ class Main:
     def run(self):
         exp_id = 0
 
-        self.psu.set_voltage(self.parameters["voltage"])
+        self.psu.set_voltage(self.args.voltage[0])
         time.sleep(0.1)
         self.psu.set_current_limit(0.2)
         time.sleep(0.1)
@@ -103,86 +77,95 @@ class Main:
         time.sleep(0.1)
 
         while True:
-            length = random.randint(
-                self.parameters["s_length"], self.parameters["e_length"]
-            )
-            delay1_flattened = list(
-                itertools.chain.from_iterable(self.parameters["delay1"])
-            )
-            delay1 = random.choice(delay1_flattened)
-            delay2_flattened = list(
-                itertools.chain.from_iterable(self.parameters["delay2"])
-            )
-            delay2 = random.choice(delay2_flattened)
-            length = round(length / 4) * 4  # ensure length is multiple of 4
-            delay1 = round(delay1 / 4) * 4  # ensure delay is multiple of 4
-            delay2 = round(delay2 / 4) * 4
-
-            self.glitcher.arm_double_multiplexing(delay1, length, "VI1", delay2, length, "VI1")
-            self.glitcher.reset(30)
-            success = False
-
+            voltage = round(random.uniform(self.args.voltage[0], self.args.voltage[1]), 2)
+            print(f"Setting PSU voltage to {voltage:.2f} V")
             try:
-                self.glitcher.wait_done(0.1)
+                self.psu.set_voltage(voltage)
+                time.sleep(0.1)
+            except PSUTimeoutError:
+                time.sleep(0.5)
+                self.psu.close()
+                self.psu = PS3005D(port=self.args.psu)
+                self.psu.set_voltage(voltage)
+                time.sleep(0.1)
+
+            for _ in range(self.n_glitches):
+                length = random.randint(
+                    self.args.length[0], self.args.length[1]
+                )
+                delay1 = random.choice(self.delay1)
+                delay2 = random.choice(self.delay2)
+                length = round(length / 4) * 4  # ensure length is multiple of 4
+                delay1 = round(delay1 / 4) * 4  # ensure delay is multiple of 4
+                delay2 = round(delay2 / 4) * 4
+
+                state = b"expected"
+
+                self.glitcher.arm_double_multiplexing(delay1, length, "VI1", delay2, length, "VI1")
+                self.glitcher.reset(50)
+
+                try:
+                    self.glitcher.wait_done(0.1)
+                except TimeoutError:
+                    print("[-] Timeout received in wait_done(). Continuing.")
+                    self.glitcher.power_cycle_reset(20_000)
+                    time.sleep(0.2)
+                    state = b"timeout"
+
                 success = self.glitcher.adc27() > 500
-                
+                    
                 if success and self.programmer:
                     try:
                         time.sleep(0.01)
-                        self.programmer.enter_bootloader(tries=2)
-                        flash = self.programmer.read_memory(0x8000, 0x10)
-                        eeprom = self.programmer.read_memory(0x1000, 0x1)
-                        print(flash[:16].hex(), eeprom.hex())
+                        tries = self.programmer.enter_bootloader(tries=1)
+                        flash = self.programmer.read_memory(0x8000, 0x2000)
+                        eeprom = self.programmer.read_memory(0x1000, 0x00FF)
 
                         rand_str = secrets.token_hex(4)
                         flash_filename = f"flash-{rand_str}.bin"
                         eeprom_filename = f"eeprom-{rand_str}.bin"
-                        # pathlib.Path(flash_filename).write_bytes(flash)
-                        # pathlib.Path(eeprom_filename).write_bytes(eeprom)
+                        pathlib.Path(flash_filename).write_bytes(flash)
+                        pathlib.Path(eeprom_filename).write_bytes(eeprom)
                         state = b"success"
 
                         print(
                             f"[+] Written {flash_filename} and {eeprom_filename}"
                         )
                         send_pushover_notification(
-                            message=f"Successful double glitch! with delays={delay1},{delay2} ns, length={length} ns, voltage={self.parameters['voltage']:.2f} V",
+                            message=f"Successful double glitch! with delays={delay1},{delay2} ns, length={length} ns, voltage={voltage:.2f} V (used {tries} tries to sync)",
                             title="Successful glitch",
                         )
                     except SyncTimeoutError:
                         state = b"sync_timeout"
                         print("[-] Sync timeout error :(")
-                else:
-                    state = b"expected"
-            except TimeoutError:
-                print("[-] Timeout received in block(). Continuing.")
-                self.glitcher.power_cycle_reset(20_000)
-                time.sleep(0.2)
-                state = b"timeout"
+                        send_pushover_notification(
+                            message=f"delays={delay1},{delay2} ns, length={length} ns, voltage={voltage:.2f}",
+                            title="Sync timeout",
+                        )
+                    except TimeoutError:
+                        state = b"read_timeout"
+                        print("[-] Read timeout error")
 
-            color = self.findus_glitcher.classify(state)
-            if success:
-                self.db.insert(
-                    exp_id,
-                    self.parameters["voltage"] * 100,
-                    delay1,
-                    delay2,
-                    length,
-                    color,
-                    state,
+                color = self.findus_glitcher.classify(state)
+                if success:
+                    self.db.insert(
+                        exp_id,
+                        voltage * 100,
+                        delay1,
+                        delay2,
+                        length,
+                        color,
+                        state,
+                    )
+                speed = self.findus_glitcher.get_speed(self.start_time, exp_id)
+                experiment_base_id = self.db.get_base_experiments_count()
+                print(
+                    self.findus_glitcher.colorize(
+                        f"[+] Experiment {exp_id}\t{experiment_base_id}\t({speed})\t{voltage:.2f}\t{delay1}\t{delay2}\t{length}\t{color}\t{state}",
+                        color,
+                    )
                 )
-            speed = self.findus_glitcher.get_speed(self.start_time, exp_id)
-            experiment_base_id = self.db.get_base_experiments_count()
-            print(
-                self.findus_glitcher.colorize(
-                    f"[+] Experiment {exp_id}\t{experiment_base_id}\t({speed})\t{self.parameters['voltage']:.2f}\t{delay1}\t{delay2}\t{length}\t{color}\t{state}",
-                    color,
-                )
-            )
-            exp_id += 1
-
-            if exp_id % 500_000 == 0:
-                self.glitcher.close()
-                self.glitcher.reboot()
+                exp_id += 1
 
 
 if __name__ == "__main__":
@@ -209,6 +192,19 @@ if __name__ == "__main__":
         "--no-store", action="store_true", help="Do not write results to the database"
     )
     p.add_argument("--ic", required=True, help="IC number")
+    p.add_argument(
+        "--voltage",
+        type=float,
+        nargs=2,
+        default=[0, 2.8],
+        help="Voltage range to use",
+    )
+    p.add_argument(
+        "--length", nargs=2, help="length start and end", type=int, default=[0, 500]
+    )
+    p.add_argument(
+        "--n-glitches", type=int, default=25000, help="Number of glitches to perform"
+    )
     args = p.parse_args()
 
     try:
