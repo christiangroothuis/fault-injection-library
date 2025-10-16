@@ -18,6 +18,9 @@ class PS3005D:
         self.device.write("VSET1?".encode())
         response = self.device.read(5).decode().strip()
 
+        if not response:
+            raise PSUTimeoutError("No response from PSU")
+
         return float(response)
 
     def set_voltage(self, voltage: float, attempts: int = 10):
